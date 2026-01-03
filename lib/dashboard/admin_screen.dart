@@ -460,9 +460,20 @@ class _AdminScreenState extends State<AdminScreen> {
             ),
             title: Text(user['fullName'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             subtitle: Text('${user['matricule']} • $role\nPoints: ${user['pointsBalance'] ?? 0}'),
-            trailing: IconButton(
-                icon: const Icon(Icons.edit, color: Colors.grey),
-                onPressed: () => _adjustPoints(user['matricule']),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.blue),
+                    onPressed: () => _adjustPoints(user['matricule']),
+                    tooltip: 'Adjust Points',
+                ),
+                IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _deleteUser(user['matricule']),
+                    tooltip: 'Delete User',
+                ),
+              ],
             ),
         ),
      );

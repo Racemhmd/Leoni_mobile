@@ -46,7 +46,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) {
           final roleName = userData['role'] is Map ? userData['role']['name'] : userData['role'];
           setState(() {
-            // Unify UI: Show EMPLOYEE even if backend returns OPERATOR
+            // Unify UI: Show EMPLOYEE even if backend returns OPERATOR. 
+            // Default to empty if null to trigger restriction.
             _role = (roleName == 'OPERATOR') ? 'EMPLOYEE' : (roleName ?? '');
             _fullName = userData['full_name'] ?? 'Employee';
             _matricule = userData['matricule'] ?? '';
@@ -72,9 +73,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  bool _isRestricted() {
+    // Strict restriction: Only strict EMPLOYEE role can see points
+    // This handles HR_ADMIN, SUPERVISOR, or any potential legacy/unknown roles safely
     final r = _role.trim().toUpperCase();
-    return r == 'HR_ADMIN' || r == 'SUPERVISOR';
+    return r != 'EMPLOYEE';
   }
 
   void _navigateTo(Widget screen) {
@@ -104,7 +106,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 22, color: const Color(0xFF003366), letterSpacing: 1.0),
         ),
         actions: [
-          const EarnSpendGuide(), 
+          if (!_isRestricted()) const EarnSpendGuide(), 
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
