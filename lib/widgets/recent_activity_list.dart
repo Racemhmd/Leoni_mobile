@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import '../theme/design_system.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 class RecentActivityList extends StatelessWidget {
-  final List<dynamic> activities; // Replacing concrete model with dynamic for flexibility here
+  final List<dynamic> activities;
   final VoidCallback onViewAll;
 
   const RecentActivityList({
@@ -17,76 +17,62 @@ class RecentActivityList extends StatelessWidget {
     if (activities.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(vertical: 24),
           child: Column(
             children: [
-              Icon(Icons.history, size: 48, color: Colors.grey[300]),
-              const SizedBox(height: 16),
-              Text(
-                'No recent activity',
-                style: TextStyle(color: Colors.grey[500]),
-              ),
+               Icon(Icons.history, size: 48, color: Colors.grey.shade300),
+               const SizedBox(height: 8),
+               Text('No recent activity', style: AppTypography.bodySmall.copyWith(color: AppColors.textLight)),
             ],
           ),
         ),
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        /* Header is handled in parent now mainly */
-        /*
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Recent Activity', style: Theme.of(context).textTheme.titleLarge),
-            TextButton(onPressed: onViewAll, child: const Text('View All')),
-          ],
-        ),
-        */
-        Card(
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: activities.length.clamp(0, 5), // Show max 5
-            separatorBuilder: (context, index) => const Divider(height: 1, indent: 16),
-            itemBuilder: (context, index) {
-              final activity = activities[index];
-              final points = activity['value'] ?? 0;
-              final isPositive = points > 0;
-              final date = DateTime.tryParse(activity['created_at'] ?? '') ?? DateTime.now();
-              final description = activity['description'] ?? activity['type'] ?? 'Unknown';
-
-              return ListTile(
-                dense: true,
-                leading: Icon(
-                  isPositive ? Icons.check_circle : Icons.remove_circle,
-                  color: isPositive ? const Color(0xFF28A745) : const Color(0xFFDC3545),
-                  size: 20,
-                ),
-                title: Text(
-                  description,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-                subtitle: Text(
-                  DateFormat('MMM d, y HH:mm').format(date),
-                  style: TextStyle(color: Colors.grey[600], fontSize: 11),
-                ),
-                trailing: Text(
-                  '${isPositive ? '+' : ''}$points',
-                  style: TextStyle(
-                    color: isPositive ? const Color(0xFF28A745) : const Color(0xFFDC3545),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                onTap: () {}, // No-op or navigate
-              );
-            },
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: activities.take(5).length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final activity = activities[index];
+        final isCredit = (activity['points'] ?? 0) > 0;
+        final date = DateTime.tryParse(activity['createdAt'].toString()) ?? DateTime.now();
+        
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4, offset: const Offset(0, 2))],
           ),
-        ),
-      ],
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: CircleAvatar(
+              backgroundColor: isCredit ? AppColors.success.withOpacity(0.1) : AppColors.error.withOpacity(0.1),
+              child: Icon(
+                isCredit ? Icons.arrow_downward : Icons.arrow_upward,
+                color: isCredit ? AppColors.success : AppColors.error,
+                size: 20,
+              ),
+            ),
+            title: Text(
+              activity['description'] ?? 'Transaction',
+              style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              DateFormat('MMM d, h:mm a').format(date),
+              style: AppTypography.label.copyWith(color: AppColors.textLight),
+            ),
+            trailing: Text(
+              '${isCredit ? '+' : ''}${activity['points']}',
+              style: AppTypography.headerSmall.copyWith(
+                color: isCredit ? AppColors.success : AppColors.error,
+                fontSize: 16,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

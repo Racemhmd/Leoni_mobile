@@ -1,62 +1,123 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'design_system.dart';
 
 class AppTheme {
-  static const Color primaryBlue = Color(0xFF003366); // LTG-style Dark Blue
-  static const Color secondaryBlue = Color(0xFF0056b3); // Brighter Blue for interactions
-  static const Color statusGreen = Color(0xFF28A745); // Enterprise Green
-  static const Color statusRed = Color(0xFFDC3545); // Enterprise Red
-  static const Color backgroundLight = Color(0xFFF4F6F9); // Neutral Light Grey
-  static const Color surfaceWhite = Colors.white;
-  static const Color textDark = Color(0xFF212529);
-
+  
+  // Base Light Theme (Default)
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryBlue,
-        primary: primaryBlue,
-        secondary: secondaryBlue,
-        background: backgroundLight,
-        surface: surfaceWhite,
-        error: statusRed,
+        seedColor: AppColors.primary,
+        primary: AppColors.primary,
+        secondary: AppColors.secondary,
+        background: AppColors.background,
+        surface: AppColors.surface,
+        error: AppColors.error,
       ),
-      scaffoldBackgroundColor: backgroundLight,
-      textTheme: GoogleFonts.robotoTextTheme().copyWith( // Roboto is very standard/enterprise
-        displayLarge: const TextStyle(fontWeight: FontWeight.bold, color: textDark),
-        titleLarge: const TextStyle(fontWeight: FontWeight.w600, color: textDark),
-        bodyLarge: const TextStyle(color: textDark),
-         bodyMedium: const TextStyle(color: Color(0xFF495057)),
+      scaffoldBackgroundColor: AppColors.background,
+      
+      // Typography
+      textTheme: TextTheme(
+        displayLarge: AppTypography.headerLarge,
+        titleLarge: AppTypography.headerMedium,
+        titleMedium: AppTypography.headerSmall,
+        bodyLarge: AppTypography.bodyLarge,
+        bodyMedium: AppTypography.bodyMedium,
+        labelSmall: AppTypography.label,
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: primaryBlue,
+
+      // App Bar
+      appBarTheme: AppBarTheme(
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
-        centerTitle: false, // Left aligned is more enterprise
+        centerTitle: false, 
+        titleTextStyle: AppTypography.headerSmall.copyWith(color: Colors.white),
       ),
+
+      // Cards
       cardTheme: CardThemeData(
-        color: surfaceWhite,
-        elevation: 1, // Subtle
+        color: AppColors.surface,
+        elevation: 1, 
         shadowColor: Colors.black.withOpacity(0.05),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)), // Straighter edges
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), 
         margin: EdgeInsets.zero,
       ),
+
+      // Buttons
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryBlue,
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
+          textStyle: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold),
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l, vertical: AppSpacing.m),
         ),
       ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          side: const BorderSide(color: AppColors.primary),
+          textStyle: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l, vertical: AppSpacing.m),
+        ),
+      ),
+
+      // Inputs
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: Colors.grey)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide(color: Colors.grey.shade300)),
+        labelStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textLight),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.grey)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+        focusedBorder: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8)), borderSide: BorderSide(color: AppColors.primary, width: 2)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.m),
       ),
-      iconTheme: const IconThemeData(color: primaryBlue),
+      
+      iconTheme: const IconThemeData(color: AppColors.primary),
+    );
+  }
+
+  // Admin Specific Theme Override
+  static ThemeData get adminTheme {
+    final base = lightTheme;
+    return base.copyWith(
+      colorScheme: base.colorScheme.copyWith(
+        primary: AppColors.adminPrimary,
+        secondary: AppColors.secondary,
+      ),
+      appBarTheme: base.appBarTheme.copyWith(
+        backgroundColor: AppColors.adminPrimary,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: base.elevatedButtonTheme.style?.copyWith(
+          backgroundColor: MaterialStateProperty.all(AppColors.adminPrimary),
+          shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))), // Sharp edges for admin
+        ),
+      ),
+    );
+  }
+
+  // Employee Specific Theme Override
+  static ThemeData get employeeTheme {
+    final base = lightTheme;
+    return base.copyWith(
+      colorScheme: base.colorScheme.copyWith(
+        primary: AppColors.employeePrimary,
+      ),
+      appBarTheme: base.appBarTheme.copyWith(
+        backgroundColor: AppColors.employeePrimary,
+        centerTitle: true, // Centered for less strict look
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: base.elevatedButtonTheme.style?.copyWith(
+          backgroundColor: MaterialStateProperty.all(AppColors.employeePrimary),
+          shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))), // Rounded for friendly look
+        ),
+      ),
     );
   }
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../auth/login_screen.dart';
+import '../theme/design_system.dart';
+import '../theme/app_theme.dart';
 
 class SupervisorScreen extends StatefulWidget {
   const SupervisorScreen({super.key});
@@ -12,175 +14,144 @@ class SupervisorScreen extends StatefulWidget {
 
 class _SupervisorScreenState extends State<SupervisorScreen> {
   final _apiService = ApiService();
-  bool _isLoading = false;
+  bool _isLoading = true;
+  String _supervisorName = '';
+  int _presentCount = 0;
+  int _absentCount = 0;
+  List<dynamic> _pendingApprovals = []; // Mock for now
 
-  // Mock data for now, replace with actual API calls later
-  final int _pendingApprovals = 3;
-  final int _teamPresent = 12;
-  final int _teamAbsent = 2;
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
-  void _handleLogout() async {
-    await _apiService.logout();
-    if (mounted) {
-       Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+  Future<void> _loadData() async {
+    try {
+      final user = await _apiService.get('/auth/me');
+      if (mounted) {
+        setState(() {
+           _supervisorName = user['fullName'] ?? 'Supervisor';
+        });
+      }
+      
+      // Mock Data for demo until endpoints match
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        setState(() {
+           _presentCount = 42;
+           _absentCount = 3;
+           _pendingApprovals = [
+             {'id': 101, 'name': 'Ahmed Ben Ali', 'type': 'Points', 'val': 50, 'reason': 'Extra Shift'},
+             {'id': 102, 'name': 'Sarra Mejri', 'type': 'Leave', 'val': '1 Day', 'reason': 'Sick Leave'},
+           ];
+           _isLoading = false;
+        });
+      }
+    } catch (e) {
+       debugPrint('Error: $e');
+       if(mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
-      appBar: AppBar(
-        title: const Text(
-          'TEAM SUPERVISION',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 1.0),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _handleLogout,
-          ),
-        ],
-      ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildStatCards(),
-                const SizedBox(height: 24),
-                const Text(
-                  'QUICK ACTIONS',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54, letterSpacing: 1.0),
-                ),
-                const SizedBox(height: 12),
-                _buildActionButtons(),
-                const SizedBox(height: 24),
-                Text(
-                  'Pending Approvals',
-                  style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
-                ),
-                const SizedBox(height: 12),
-                Expanded(child: _buildPendingList()),
-              ],
+    // Reuse Admin Theme for Supervisor (Authoritative)
+    return Theme(
+      data: AppTheme.adminTheme,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: Text('TEAM SUPERVISION', style: AppTypography.headerSmall.copyWith(color: Colors.white, letterSpacing: 1.5)),
+          actions: [
+            IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () {}),
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () async {
+                  await _apiService.logout();
+                  if (context.mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+              },
             ),
-          ),
-    );
-  }
-
-  Widget _buildStatCards() {
-    return Row(
-      children: [
-        Expanded(
-          child: _StatCard(
-            label: 'Present',
-            value: '$_teamPresent',
-            icon: Icons.check_circle_outline,
-            color: Colors.green,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _StatCard(
-            label: 'Absent',
-            value: '$_teamAbsent',
-            icon: Icons.cancel_outlined,
-            color: Colors.redAccent,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () {
-               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opening Team Roster...')));
-            },
-            icon: const Icon(Icons.people),
-            label: const Text('Team Roster'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              backgroundColor: const Color(0xFF1A1A2E),
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () {
-               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opening Reports...')));
-            },
-            icon: const Icon(Icons.bar_chart),
-            label: const Text('Reports'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              foregroundColor: const Color(0xFF1A1A2E),
-              side: const BorderSide(color: Color(0xFF1A1A2E)),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPendingList() {
-    if (_pendingApprovals == 0) {
-      return Center(
-        child: Text('No pending approvals', style: GoogleFonts.inter(color: Colors.grey)),
-      );
-    }
-    
-    // Mock list
-    return ListView.builder(
-      itemCount: _pendingApprovals,
-      itemBuilder: (ctx, i) {
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            leading: const CircleAvatar(backgroundColor: Colors.orangeAccent, child: Icon(Icons.access_time, color: Colors.white)),
-            title: Text('Leave Request #${100 + i}'),
-            subtitle: const Text('John Doe • Sick Leave'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('View Request Details')));
-            },
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _StatCard({required this.label, required this.value, required this.icon, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF003366))),
-            Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
           ],
         ),
+        body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: AppSpacing.pagePadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   // WELCOME HEADER
+                   Text('Hello, $_supervisorName', style: AppTypography.headerMedium.copyWith(color: AppColors.adminPrimary)),
+                   Text('Here is your team overview today.', style: AppTypography.bodyMedium),
+                   const SizedBox(height: AppSpacing.l),
+
+                   // STATS ROW
+                   Row(
+                     children: [
+                       Expanded(child: _buildStatCard('Present Team', '$_presentCount', Icons.check_circle_outline, AppColors.success)),
+                       const SizedBox(width: AppSpacing.m),
+                       Expanded(child: _buildStatCard('Absent', '$_absentCount', Icons.warning_amber_rounded, AppColors.error)),
+                     ],
+                   ),
+                   const SizedBox(height: AppSpacing.xl),
+
+                   // PENDING APPROVALS
+                   Text('PENDING APPROVALS', style: AppTypography.label),
+                   const SizedBox(height: AppSpacing.m),
+                   _pendingApprovals.isEmpty 
+                    ? const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('No pending items.')))
+                    : Column(
+                        children: _pendingApprovals.map((item) => Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          elevation: 1,
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Colors.blue.shade50,
+                              child: Text(item['name'][0], style: const TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                            title: Text(item['name'], style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
+                            subtitle: Text('${item['type']} • ${item['reason']}'),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(icon: const Icon(Icons.check, color: AppColors.success), onPressed: (){
+                                  setState(() => _pendingApprovals.remove(item));
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Approved')));
+                                }),
+                                IconButton(icon: const Icon(Icons.close, color: AppColors.error), onPressed: (){
+                                  setState(() => _pendingApprovals.remove(item));
+                                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Rejected')));
+                                }),
+                              ],
+                            ),
+                          ),
+                        )).toList(),
+                    ),
+                ],
+              ),
+          ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.l),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+           Icon(icon, color: color, size: 28),
+           const SizedBox(height: 12),
+           Text(value, style: AppTypography.headerLarge.copyWith(color: AppColors.textDark)),
+           Text(title, style: AppTypography.bodySmall),
+        ],
       ),
     );
   }

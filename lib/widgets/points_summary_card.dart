@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../theme/design_system.dart';
 
 class PointsSummaryCard extends StatelessWidget {
   final int points;
-  final String role; // Kept for generic usage, but Level takes precedence
+  final String role;
+  final double dtValue;
   final VoidCallback? onTap;
 
   const PointsSummaryCard({
     super.key,
     required this.points,
     required this.role,
+    this.dtValue = 0.0,
     this.onTap,
   });
 
@@ -19,36 +22,36 @@ class PointsSummaryCard extends StatelessWidget {
     if (pts >= 1000) {
       return {
         'name': 'GOLD',
-        'color': const Color(0xFFFFD700),
+        'color': AppColors.gold,
         'icon': Icons.emoji_events,
         'nextLimit': 2000, 
         'minLimit': 1000,
-        'gradient': [const Color(0xFFFDB931), const Color(0xFFFFD700), const Color(0xFFFDB931)]
+        'gradient': AppColors.goldGradient
       };
     } else if (pts >= 500) {
       return {
         'name': 'SILVER',
-        'color': const Color(0xFFC0C0C0),
+        'color': AppColors.silver,
         'icon': Icons.stars,
         'nextLimit': 1000,
         'minLimit': 500,
-        'gradient': [const Color(0xFFE0E0E0), const Color(0xFFBDBDBD)]
+        'gradient': AppColors.silverGradient
       };
     } else {
       return {
         'name': 'BRONZE',
-        'color': const Color(0xFFCD7F32),
+        'color': AppColors.bronze,
         'icon': Icons.shield,
         'nextLimit': 500,
         'minLimit': 0,
-        'gradient': [const Color(0xFFCD7F32), const Color(0xFFA0522D)]
+        'gradient': AppColors.bronzeGradient
       };
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Enterprise style: Clean, clear, no gradients, minimal color
+    // Gamified Style for Employee
     final levelInfo = _getLevelInfo(points);
     final int nextLimit = levelInfo['nextLimit'];
     final int minLimit = levelInfo['minLimit'];
@@ -58,10 +61,15 @@ class PointsSummaryCard extends StatelessWidget {
     final int pointsNeeded = nextLimit - points;
 
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
+      elevation: 4,
+      shadowColor: (levelInfo['color'] as Color).withOpacity(0.3),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.l),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: Colors.white,
+        ),
         child: Column(
           children: [
             Row(
@@ -70,21 +78,36 @@ class PointsSummaryCard extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('TOTAL BALANCE', style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 1)),
+                    Text('TOTAL BALANCE', style: AppTypography.label),
                     const SizedBox(height: 4),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.baseline,
                       textBaseline: TextBaseline.alphabetic,
                       children: [
-                        Text('$points', style: GoogleFonts.outfit(fontSize: 48, fontWeight: FontWeight.bold, color: const Color(0xFF003366))),
+                        Text('$points', style: AppTypography.headerLarge.copyWith(color: AppColors.primary, fontSize: 48)),
                         const SizedBox(width: 4),
-                        Text('PTS', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFFFDB931))),
+                        Text('PTS', style: AppTypography.headerSmall.copyWith(color: levelInfo['color'])),
                       ],
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '≈ ${dtValue.toStringAsFixed(3)} DT',
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: levelInfo['gradient'], begin: Alignment.topLeft, end: Alignment.bottomRight),
                     borderRadius: BorderRadius.circular(20),
@@ -92,8 +115,8 @@ class PointsSummaryCard extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      Icon(levelInfo['icon'], color: Colors.white, size: 18),
-                      const SizedBox(width: 6),
+                      Icon(levelInfo['icon'], color: Colors.white, size: 20),
+                      const SizedBox(width: 8),
                       Text(
                         levelInfo['name'],
                         style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
@@ -103,30 +126,26 @@ class PointsSummaryCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.l),
             LinearPercentIndicator(
-              lineHeight: 8.0,
+              lineHeight: 10.0,
               percent: progress,
-              barRadius: const Radius.circular(4),
-              backgroundColor: Colors.grey.shade200,
+              barRadius: const Radius.circular(5),
+              backgroundColor: Colors.grey.shade100,
               progressColor: levelInfo['color'],
               padding: EdgeInsets.zero,
               animation: true,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.m),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: Text(
                     points == 0 
-                        ? "You haven't earned points yet.\nStart by participating and engaging!" 
+                        ? "Start earning points today!" 
                         : '$pointsNeeded pts to next level',
-                    style: GoogleFonts.poppins(
-                      color: points == 0 ? Colors.grey.shade600 : Colors.grey.shade600, 
-                      fontSize: 12, 
-                      fontStyle: FontStyle.italic
-                    ),
+                    style: AppTypography.bodySmall.copyWith(fontStyle: FontStyle.italic),
                   ),
                 ),
                 if (onTap != null)
@@ -136,9 +155,9 @@ class PointsSummaryCard extends StatelessWidget {
                       onTap: onTap,
                       child: Row(
                         children: [
-                          Text('History', style: GoogleFonts.poppins(color: const Color(0xFF003366), fontWeight: FontWeight.w600, fontSize: 12)),
+                          Text('History', style: AppTypography.label.copyWith(color: AppColors.primary)),
                           const SizedBox(width: 4),
-                          const Icon(Icons.arrow_forward_ios, size: 12, color: Color(0xFF003366)),
+                          Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.primary),
                         ],
                       ),
                     ),

@@ -3,12 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   // Brand Core
-  static const Color primary = Color(0xFF003366); // Deep Navy
-  static const Color secondary = Color(0xFF0056b3); // Bright Blue
-
+  static const Color primary = Color(0xFF003D89); // LEONI Congress Blue (Brand Primary)
+  static const Color secondary = Color(0xFF003D89); // Using brand primary for secondary actions to keep it clean, or maybe a lighter shade? Keeping distinct for now but aligning with brand.
+  
   // Role Specific
-  static const Color adminPrimary = Color(0xFF1A1A2E); // Dark Slate
-  static const Color employeePrimary = Color(0xFF1565C0); // Vibrant Blue
+  static const Color adminPrimary = Color(0xFF002857); // LEONI Prussian Blue (Admin Dashboard)
+  static const Color employeePrimary = Color(0xFF003D89); // LEONI Congress Blue (Employee Dashboard)
 
   // Functional
   static const Color success = Color(0xFF28A745);
@@ -30,19 +30,20 @@ class AppColors {
   static const Color surface = Colors.white;
   static const Color textDark = Color(0xFF212529);
   static const Color textLight = Color(0xFF6C757D);
+  static const Color textPrimary = textDark; // Alias
 }
 
 class AppTypography {
-  // Headings (Outfit - Modern, Bold)
-  static TextStyle get headerLarge => GoogleFonts.outfit(
+  // Headings (Inter - Clean, Corporate)
+  static TextStyle get headerLarge => GoogleFonts.inter(
     fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.textDark,
   );
 
-  static TextStyle get headerMedium => GoogleFonts.outfit(
+  static TextStyle get headerMedium => GoogleFonts.inter(
     fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textDark,
   );
   
-  static TextStyle get headerSmall => GoogleFonts.outfit(
+  static TextStyle get headerSmall => GoogleFonts.inter(
     fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.textDark,
   );
 
@@ -61,6 +62,10 @@ class AppTypography {
 
   static TextStyle get label => GoogleFonts.inter(
     fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 1.0, color: AppColors.textLight,
+  );
+  
+  static TextStyle get button => GoogleFonts.inter(
+    fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white, letterSpacing: 0.5,
   );
 }
 

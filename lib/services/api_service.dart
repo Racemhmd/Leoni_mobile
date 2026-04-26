@@ -3,21 +3,18 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../utils/constants.dart';
 
 class ApiService {
   final storage = const FlutterSecureStorage();
 
-  // Render Production URL
-  static const String _domain = 'https://leoni-backend.onrender.com'; 
-  static const String _apiPrefix = '/api';
-
-  String get baseUrl => '$_domain$_apiPrefix';
+  String get baseUrl => AppConstants.baseUrl;
 
   Future<Map<String, String>> getHeaders() async {
     final token = await storage.read(key: 'token');
     return {
       'Content-Type': 'application/json',
-      'Accept': 'application/json', // Enforce JSON response
+      'Accept': 'application/json',
       'ngrok-skip-browser-warning': 'true',
       'User-Agent': 'LeoniMobileApp',
       if (token != null) 'Authorization': 'Bearer $token',
@@ -27,7 +24,6 @@ class ApiService {
   Future<dynamic> _handleResponse(http.Response response) async {
     final contentType = response.headers['content-type'] ?? '';
     
-    // Log full response for debugging
     if (kDebugMode) {
       print('[API] Status: ${response.statusCode}');
       print('[API] Content-Type: $contentType');
@@ -35,7 +31,7 @@ class ApiService {
     }
 
     if (contentType.contains('text/html') || response.body.trim().startsWith('<!DOCTYPE html>') || response.body.trim().startsWith('<html')) {
-      throw Exception('Backend connection error');
+      throw Exception('Backend connection error: Received HTML instead of JSON');
     }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -53,7 +49,6 @@ class ApiService {
           errorMessage = errorBody['message'].toString();
         }
       } catch (_) {
-        // use default error message if body is not json
         if (response.body.isNotEmpty) {
              errorMessage += ' ${response.body}';
         }

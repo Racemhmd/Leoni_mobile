@@ -40,9 +40,9 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
   Future<void> _fetchApprovers() async {
       try {
           // Fetch Supervisors
-          final supervisors = await _apiService.get('/users?role=SUPERVISOR');
+          final supervisors = await _apiService.get('/users/supervisors');
           // Fetch HR Admins
-          final hrs = await _apiService.get('/users?role=HR_ADMIN');
+          final hrs = await _apiService.get('/users/hr-admins');
 
           if (mounted) {
               setState(() {
@@ -276,9 +276,35 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
                           onChanged: (v) => setState(() => _leaveType = v!),
                       ),
                       const SizedBox(height: 16),
-                       DropdownButtonFormField<int>(
+                      const SizedBox(height: 16),
+                      
+                      // Workflow Explanation
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE3F2FD), // Light blue background
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFFBBDEFB)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.info_outline, size: 20, color: Color(0xFF1976D2)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Your request will first be reviewed by your Supervisor, then validated by HR.',
+                                style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF0D47A1), height: 1.4),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      DropdownButtonFormField<int>(
                           value: _selectedSupervisorId,
-                          decoration: _inputDecoration('Supervisor'),
+                          decoration: _inputDecoration('Select Your Supervisor'),
                           items: _supervisors.map<DropdownMenuItem<int>>((s) {
                                 return DropdownMenuItem<int>(
                                     value: s['id'],
@@ -291,7 +317,7 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
 
                       DropdownButtonFormField<int>(
                           value: _selectedHrAdminId,
-                          decoration: _inputDecoration('HR Admin'),
+                          decoration: _inputDecoration('Select HR Administrator'),
                           items: _hrAdmins.map<DropdownMenuItem<int>>((h) {
                                 return DropdownMenuItem<int>(
                                     value: h['id'],
