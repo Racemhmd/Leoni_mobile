@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import '../theme/design_system.dart';
 import '../screens/sanctions_dashboard_screen.dart';
 import '../screens/employee_sanctions_history_screen.dart';
+import '../screens/hr_kpi_dashboard_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   final String userRole;
@@ -37,24 +38,13 @@ class AppDrawer extends StatelessWidget {
           ),
           if (userRole == 'HR_ADMIN' || userRole == 'SUPERVISOR') ...[
             ListTile(
-              leading: const Icon(Icons.gavel),
-              title: const Text('Sanctions Dashboard'),
+              leading: const Icon(Icons.analytics),
+              title: const Text('HR KPI Dashboard'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => SanctionsDashboardScreen(userRole: userRole)),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_search),
-              title: const Text('Employee History'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => EmployeeSanctionsHistoryScreen(userRole: userRole)),
+                  MaterialPageRoute(builder: (_) => HrKpiDashboardScreen(userRole: userRole)),
                 );
               },
             ),

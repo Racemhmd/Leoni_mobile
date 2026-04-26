@@ -46,12 +46,28 @@ class SanctionsService {
   Future<List<Map<String, dynamic>>> getEmployeeHistory(String matricule) async {
     try {
       final response = await _apiService.get('/sanctions/employee/$matricule');
-      if (response is List) {
-        return response.cast<Map<String, dynamic>>();
+      if (response != null && response is List) {
+        return List<Map<String, dynamic>>.from(response);
       }
       return [];
     } catch (e) {
       throw Exception('Failed to load employee sanction history: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> getKpiDashboardData({String period = '6', String? matricule}) async {
+    try {
+      String query = '?period=$period';
+      if (matricule != null && matricule.isNotEmpty) {
+        query += '&matricule=$matricule';
+      }
+      final response = await _apiService.get('/sanctions/kpi-dashboard$query');
+      if (response != null && response is Map<String, dynamic>) {
+        return response;
+      }
+      return {'totals': {}, 'chartData': []};
+    } catch (e) {
+      throw Exception('Failed to load kpi dashboard data: $e');
     }
   }
 
