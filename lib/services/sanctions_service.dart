@@ -42,4 +42,28 @@ class SanctionsService {
       throw Exception('Failed to load sanction details: $e');
     }
   }
+
+  Future<List<Map<String, dynamic>>> getEmployeeHistory(String matricule) async {
+    try {
+      final response = await _apiService.get('/sanctions/employee/$matricule');
+      if (response is List) {
+        return response.cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Failed to load employee sanction history: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAllEmployees() async {
+    try {
+      final response = await _apiService.get('/users');
+      if (response is List) {
+        return response.cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Failed to load employees: $e');
+    }
+  }
 }

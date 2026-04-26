@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../theme/design_system.dart';
 import '../screens/sanctions_dashboard_screen.dart';
+import '../screens/employee_sanctions_history_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   final String userRole;
@@ -34,10 +35,10 @@ class AppDrawer extends StatelessWidget {
               Navigator.pop(context); // Just close the drawer to stay on Dashboard
             },
           ),
-          if (userRole == 'HR_ADMIN' || userRole == 'SUPERVISOR')
+          if (userRole == 'HR_ADMIN' || userRole == 'SUPERVISOR') ...[
             ListTile(
               leading: const Icon(Icons.gavel),
-              title: const Text('Sanctions'),
+              title: const Text('Sanctions Dashboard'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -46,6 +47,18 @@ class AppDrawer extends StatelessWidget {
                 );
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.person_search),
+              title: const Text('Employee History'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => EmployeeSanctionsHistoryScreen(userRole: userRole)),
+                );
+              },
+            ),
+          ],
         ],
       ),
     );
