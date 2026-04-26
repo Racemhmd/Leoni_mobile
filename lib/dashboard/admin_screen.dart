@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import '../theme/design_system.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_drawer.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -339,6 +340,7 @@ class _AdminScreenState extends State<AdminScreen> {
       data: AppTheme.adminTheme,
       child: Scaffold(
         backgroundColor: AppColors.background,
+        drawer: const AppDrawer(userRole: 'HR_ADMIN'),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : CustomScrollView(

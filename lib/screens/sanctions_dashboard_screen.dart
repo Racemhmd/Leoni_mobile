@@ -20,6 +20,7 @@ class _SanctionsDashboardScreenState extends State<SanctionsDashboardScreen> {
   String _selectedType = 'All';
   
   List<Map<String, dynamic>> _chartData = [];
+  List<Map<String, dynamic>> _detailsData = [];
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -37,12 +38,15 @@ class _SanctionsDashboardScreenState extends State<SanctionsDashboardScreen> {
 
     try {
       final typeQuery = _selectedType == 'All' ? null : _getSanctionTypeKey(_selectedType);
-      final data = await _sanctionsService.getSanctionStats(
-        period: _selectedPeriod,
-        type: typeQuery,
-      );
+      
+      final results = await Future.wait([
+        _sanctionsService.getSanctionStats(period: _selectedPeriod, type: typeQuery),
+        _sanctionsService.getSanctionDetails(period: _selectedPeriod, type: typeQuery),
+      ]);
+      
       setState(() {
-        _chartData = data;
+        _chartData = results[0];
+        _detailsData = results[1];
         _isLoading = false;
       });
     } catch (e) {
@@ -68,7 +72,7 @@ class _SanctionsDashboardScreenState extends State<SanctionsDashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sanctions Dashboard'),
+        title: const Text('Sanctions Overview'),
         backgroundColor: AppColors.adminPrimary,
         actions: [
           if (widget.userRole == 'HR_ADMIN')
@@ -90,11 +94,26 @@ class _SanctionsDashboardScreenState extends State<SanctionsDashboardScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _errorMessage != null
                     ? Center(child: Text(_errorMessage!, style: TextStyle(color: AppColors.error)))
-                    : _chartData.isEmpty
+                    : _chartData.isEmpty && _detailsData.isEmpty
                         ? const Center(child: Text('No data available for selected filter.'))
-                        : Padding(
-                            padding: const EdgeInsets.all(AppSpacing.l),
-                            child: _buildChart(),
+                        : SingleChildScrollView(
+                            child: Padding(
+                              padding: const EdgeInsets.all(AppSpacing.l),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (_chartData.isNotEmpty)
+                                    SizedBox(
+                                      height: 300,
+                                      child: _buildChart(),
+                                    ),
+                                  const SizedBox(height: AppSpacing.xl),
+                                  Text('Employee Details', style: AppTypography.headerSmall),
+                                  const SizedBox(height: AppSpacing.m),
+                                  _buildDetailsTable(),
+                                ],
+                              ),
+                            ),
                           ),
           ),
         ],
@@ -186,6 +205,40 @@ class _SanctionsDashboardScreenState extends State<SanctionsDashboardScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDetailsTable() {
+    if (_detailsData.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(AppSpacing.m),
+        child: Text('No employee records found for this filter.'),
+      );
+    }
+
+    return Card(
+      elevation: 1,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+          columns: const [
+            DataColumn(label: Text('Matricule')),
+            DataColumn(label: Text('Name')),
+            DataColumn(label: Text('Total Sanctions')),
+          ],
+          rows: _detailsData.map((e) {
+            return DataRow(cells: [
+              DataCell(Text(e['matricule']?.toString() ?? '-')),
+              DataCell(Text(e['name']?.toString() ?? '-')),
+              DataCell(Text(
+                e['value']?.toString() ?? '0',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.error),
+              )),
+            ]);
+          }).toList(),
+        ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../auth/login_screen.dart';
 import '../theme/design_system.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_drawer.dart';
 
 class SupervisorScreen extends StatefulWidget {
   const SupervisorScreen({super.key});
@@ -61,6 +62,7 @@ class _SupervisorScreenState extends State<SupervisorScreen> {
       data: AppTheme.adminTheme,
       child: Scaffold(
         backgroundColor: AppColors.background,
+        drawer: const AppDrawer(userRole: 'SUPERVISOR'),
         appBar: AppBar(
           title: Text('TEAM SUPERVISION', style: AppTypography.headerSmall.copyWith(color: Colors.white, letterSpacing: 1.5)),
           actions: [

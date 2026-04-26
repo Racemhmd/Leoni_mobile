@@ -1,36 +1,45 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'auth_service.dart';
+import 'api_service.dart';
 
 class SanctionsService {
-  static const String baseUrl = 'http://localhost:3000/sanctions'; // Adjust as needed
-  final AuthService _authService = AuthService();
+  final ApiService _apiService = ApiService();
 
   Future<List<Map<String, dynamic>>> getSanctionStats({
     required String period,
     String? type,
   }) async {
-    final token = await _authService.getToken();
-    if (token == null) throw Exception('No token found');
-
-    var uri = Uri.parse('$baseUrl/stats?period=$period');
+    String endpoint = '/sanctions/stats?period=$period';
     if (type != null && type.isNotEmpty && type != 'All') {
-      uri = Uri.parse('$baseUrl/stats?period=$period&type=$type');
+      endpoint += '&type=$type';
     }
 
-    final response = await http.get(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
+    try {
+      final response = await _apiService.get(endpoint);
+      if (response is List) {
+        return response.cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Failed to load sanction stats: $e');
+    }
+  }
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.cast<Map<String, dynamic>>();
-    } else {
-      throw Exception('Failed to load sanction stats: ${response.body}');
+  Future<List<Map<String, dynamic>>> getSanctionDetails({
+    required String period,
+    String? type,
+  }) async {
+    String endpoint = '/sanctions/details?period=$period';
+    if (type != null && type.isNotEmpty && type != 'All') {
+      endpoint += '&type=$type';
+    }
+
+    try {
+      final response = await _apiService.get(endpoint);
+      if (response is List) {
+        return response.cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Failed to load sanction details: $e');
     }
   }
 }

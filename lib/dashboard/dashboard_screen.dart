@@ -18,6 +18,7 @@ import '../widgets/earn_spend_guide.dart';
 import '../widgets/qr_card.dart';
 import '../widgets/points_summary_card.dart'; // Make sure this is imported if used
 import '../widgets/notification_bell.dart';
+import '../widgets/app_drawer.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -109,6 +110,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       data: AppTheme.employeeTheme,
       child: Scaffold(
         backgroundColor: AppColors.background,
+        drawer: AppDrawer(userRole: _role.isNotEmpty ? _role : 'EMPLOYEE'),
         appBar: AppBar(
           elevation: 0,
           backgroundColor: Colors.transparent,
