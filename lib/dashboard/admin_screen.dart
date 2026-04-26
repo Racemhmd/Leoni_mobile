@@ -366,6 +366,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       centerTitle: false,
                       titlePadding: const EdgeInsets.only(left: 20, bottom: 20, right: 20),
                       title: Column(
+                        mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.end,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

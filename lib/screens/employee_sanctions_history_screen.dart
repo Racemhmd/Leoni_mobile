@@ -155,7 +155,7 @@ class _EmployeeSanctionsHistoryScreenState extends State<EmployeeSanctionsHistor
     }
 
     if (_hasSearched && _historyData.isEmpty) {
-      return const Center(
+      return Center(
         child: Text('No sanctions history found for this employee.', style: AppTypography.bodyLarge),
       );
     }
@@ -172,8 +172,8 @@ class _EmployeeSanctionsHistoryScreenState extends State<EmployeeSanctionsHistor
         children: [
           _buildChartSection(),
           const SizedBox(height: AppSpacing.m),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: AppSpacing.l),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.l),
             child: Text('Detailed History', style: AppTypography.headerSmall),
           ),
           _buildHistoryTable(),
@@ -197,7 +197,7 @@ class _EmployeeSanctionsHistoryScreenState extends State<EmployeeSanctionsHistor
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Sanctions Over Time', style: AppTypography.headerSmall),
+              Text('Sanctions Over Time', style: AppTypography.headerSmall),
               DropdownButton<String>(
                 value: _selectedChartType,
                 underline: const SizedBox(),
@@ -323,6 +323,7 @@ class _EmployeeSanctionsHistoryScreenState extends State<EmployeeSanctionsHistor
   }
 
   Widget _buildHistoryTable() {
+    return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.l),
       child: Card(
