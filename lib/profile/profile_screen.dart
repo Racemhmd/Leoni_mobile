@@ -22,6 +22,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _fullName = '';
   String _matricule = '';
   String _role = '';
+  String _personalEmail = '';
   
   // Points Stats
   double _totalGained = 0;
@@ -42,11 +43,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final userData = await _apiService.get('/auth/me');
       if (mounted) {
-         setState(() {
+          setState(() {
             _fullName = userData['fullName'] ?? userData['full_name'] ?? 'User';
             _matricule = userData['matricule'] ?? '';
             final roleName = userData['role'] is Map ? userData['role']['name'] : userData['role'];
             _role = roleName ?? '';
+            _personalEmail = userData['personalEmail'] ?? '';
          });
       }
 
@@ -73,6 +75,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
           (route) => false,
        );
     }
+  }
+
+  Future<void> _showUpdateEmailDialog() async {
+    final controller = TextEditingController(text: _personalEmail);
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Update Recovery Email'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            labelText: 'Personal Email',
+            hintText: 'e.g. user@gmail.com',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await _apiService.updateRecoveryEmail(controller.text.trim());
+                if (mounted) {
+                  setState(() => _personalEmail = controller.text.trim());
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Recovery email updated successfully')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+                  );
+                }
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -169,6 +216,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   onTap: () {
                                       // Navigate to change password
                                   },
+                              ),
+                              const Divider(height: 1),
+                              ListTile(
+                                  title: Text('Update Recovery Email', style: AppTypography.bodyMedium),
+                                  subtitle: Text(_personalEmail.isEmpty ? 'Not set' : _personalEmail, style: AppTypography.bodySmall),
+                                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                                  onTap: _showUpdateEmailDialog,
                               ),
                           ],
                       ),

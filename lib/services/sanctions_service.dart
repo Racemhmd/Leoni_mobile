@@ -55,11 +55,14 @@ class SanctionsService {
     }
   }
 
-  Future<Map<String, dynamic>> getKpiDashboardData({String period = '6', String? matricule}) async {
+  Future<Map<String, dynamic>> getKpiDashboardData({String period = '6', String? matricule, String? group}) async {
     try {
       String query = '?period=$period';
       if (matricule != null && matricule.isNotEmpty) {
         query += '&matricule=$matricule';
+      }
+      if (group != null && group.isNotEmpty) {
+        query += '&group=$group';
       }
       final response = await _apiService.get('/sanctions/kpi-dashboard$query');
       if (response != null && response is Map<String, dynamic>) {
@@ -68,6 +71,34 @@ class SanctionsService {
       return {'totals': {}, 'chartData': []};
     } catch (e) {
       throw Exception('Failed to load kpi dashboard data: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getKpiByGroupData({String period = '6', String? group}) async {
+    try {
+      String query = '?period=$period';
+      if (group != null && group.isNotEmpty) {
+        query += '&group=$group';
+      }
+      final response = await _apiService.get('/sanctions/kpi/group$query');
+      if (response != null && response is List) {
+        return List<Map<String, dynamic>>.from(response);
+      }
+      return [];
+    } catch (e) {
+      throw Exception('Failed to load kpi group data: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> getKpiByEmployeeData(String matricule, {String period = '6'}) async {
+    try {
+      final response = await _apiService.get('/sanctions/kpi/employee/$matricule?period=$period');
+      if (response != null && response is Map<String, dynamic>) {
+        return response;
+      }
+      return {'employee': {}, 'totals': {}, 'timeBasedData': []};
+    } catch (e) {
+      throw Exception('Failed to load employee kpi data: $e');
     }
   }
 

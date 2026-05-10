@@ -92,6 +92,43 @@ class ApiService {
     await storage.deleteAll();
   }
 
+  Future<dynamic> forgotPassword(String matricule, String recoveryEmail) async {
+    final url = Uri.parse('$baseUrl/auth/forgot-password');
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+      },
+      body: jsonEncode({'matricule': matricule, 'recoveryEmail': recoveryEmail}),
+    );
+    return _handleResponse(response);
+  }
+
+  Future<dynamic> resetPassword(String matricule, String code, String newPassword, String confirmPassword) async {
+    final url = Uri.parse('$baseUrl/auth/reset-password');
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+      },
+      body: jsonEncode({
+        'matricule': matricule,
+        'code': code,
+        'newPassword': newPassword,
+        'confirmPassword': confirmPassword,
+      }),
+    );
+    return _handleResponse(response);
+  }
+
+  Future<dynamic> updateRecoveryEmail(String email) async {
+    return patch('/users/me/recovery-email', {'email': email});
+  }
+
   Future<dynamic> get(String endpoint) async {
     final headers = await getHeaders();
     final url = Uri.parse('$baseUrl$endpoint');

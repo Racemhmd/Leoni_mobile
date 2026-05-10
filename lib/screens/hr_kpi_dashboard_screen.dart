@@ -26,7 +26,13 @@ class _HrKpiDashboardScreenState extends State<HrKpiDashboardScreen> {
   
   String _selectedPeriod = '6'; // 3, 6, 12 months
   String? _selectedMatricule;
+  String? _selectedGroup;
   String _selectedChartFilter = 'All'; // Chart filter
+  
+  // Available groups for dropdown (could also be fetched dynamically)
+  final List<String> _availableGroups = ['G-855', 'G-856', 'G-857', 'G-UNASSIGNED'];
+
+  Map<String, dynamic>? _currentEmployeeInfo;
 
   @override
   void initState() {
@@ -55,13 +61,24 @@ class _HrKpiDashboardScreenState extends State<HrKpiDashboardScreen> {
     setState(() {
       _isLoadingData = true;
       _errorMessage = null;
+      _currentEmployeeInfo = null;
     });
 
     try {
-      final data = await _sanctionsService.getKpiDashboardData(
-        period: _selectedPeriod,
-        matricule: _selectedMatricule,
-      );
+      Map<String, dynamic> data;
+      
+      if (_selectedMatricule != null && _selectedMatricule!.isNotEmpty) {
+        // Individual View
+        data = await _sanctionsService.getKpiByEmployeeData(_selectedMatricule!, period: _selectedPeriod);
+        _currentEmployeeInfo = data['employee'];
+      } else {
+        // Global or Group View
+        data = await _sanctionsService.getKpiDashboardData(
+          period: _selectedPeriod,
+          group: _selectedGroup,
+        );
+      }
+      
       if (mounted) {
         setState(() {
           _dashboardData = data;
@@ -84,8 +101,14 @@ class _HrKpiDashboardScreenState extends State<HrKpiDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isGroupView = _selectedMatricule == null || _selectedMatricule!.isEmpty;
-    final viewTitle = isGroupView ? 'Group KPI View' : 'Employee KPI View';
+    final isGlobalView = (_selectedMatricule == null || _selectedMatricule!.isEmpty) && (_selectedGroup == null || _selectedGroup!.isEmpty);
+    final isGroupView = _selectedGroup != null && _selectedGroup!.isNotEmpty && (_selectedMatricule == null || _selectedMatricule!.isEmpty);
+    
+    String viewTitle = 'Global KPI View';
+    if (isGroupView) viewTitle = 'Group KPI View: $_selectedGroup';
+    if (_currentEmployeeInfo != null) {
+      viewTitle = 'Employee: ${_currentEmployeeInfo!['name']} (${_currentEmployeeInfo!['matricule']}) - Group: ${_currentEmployeeInfo!['group']}';
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -109,6 +132,10 @@ class _HrKpiDashboardScreenState extends State<HrKpiDashboardScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
+                              if (_currentEmployeeInfo != null) ...[
+                                _buildEmployeeProfileBanner(),
+                                const SizedBox(height: AppSpacing.m),
+                              ],
                               Text(viewTitle, style: AppTypography.headerMedium),
                               const SizedBox(height: AppSpacing.m),
                               _buildKpiGrid(),
@@ -141,55 +168,35 @@ class _HrKpiDashboardScreenState extends State<HrKpiDashboardScreen> {
           Row(
             children: [
               Expanded(
-                flex: 2,
-                child: _isLoadingEmployees
-                    ? const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)))
-                    : Autocomplete<Map<String, dynamic>>(
-                        displayStringForOption: (option) => '${option['matricule']} - ${option['fullName'] ?? 'Unknown'}',
-                        optionsBuilder: (TextEditingValue textEditingValue) {
-                          if (textEditingValue.text.isEmpty) return const Iterable.empty();
-                          return _employees.where((employee) {
-                            final matricule = employee['matricule']?.toString().toLowerCase() ?? '';
-                            final name = (employee['fullName'] ?? '').toString().toLowerCase();
-                            final query = textEditingValue.text.toLowerCase();
-                            return matricule.contains(query) || name.contains(query);
-                          });
-                        },
-                        onSelected: (Map<String, dynamic> selection) {
-                          setState(() => _selectedMatricule = selection['matricule'].toString());
-                          _onFilterChanged();
-                        },
-                        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                          return TextField(
-                            controller: controller,
-                            focusNode: focusNode,
-                            decoration: InputDecoration(
-                              hintText: 'Search Employee...',
-                              prefixIcon: const Icon(Icons.person_search, size: 20),
-                              suffixIcon: _selectedMatricule != null
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear, size: 20),
-                                      onPressed: () {
-                                        controller.clear();
-                                        setState(() => _selectedMatricule = null);
-                                        _onFilterChanged();
-                                      },
-                                    )
-                                  : null,
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                          );
-                        },
-                      ),
+                flex: 1,
+                child: DropdownButtonFormField<String>(
+                  value: _selectedGroup,
+                  decoration: InputDecoration(
+                    labelText: 'Group',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('All Groups')),
+                    ..._availableGroups.map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                  ],
+                  onChanged: (val) {
+                    setState(() {
+                      _selectedGroup = val;
+                      _selectedMatricule = null; // Reset employee when group changes
+                    });
+                    _onFilterChanged();
+                  },
+                ),
               ),
-              const SizedBox(width: AppSpacing.m),
+              const SizedBox(width: AppSpacing.s),
               Expanded(
                 flex: 1,
                 child: DropdownButtonFormField<String>(
                   value: _selectedPeriod,
                   decoration: InputDecoration(
+                    labelText: 'Period',
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -209,6 +216,110 @@ class _HrKpiDashboardScreenState extends State<HrKpiDashboardScreen> {
               ),
             ],
           ),
+          const SizedBox(height: AppSpacing.m),
+          _isLoadingEmployees
+              ? const Center(child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+              : Autocomplete<Map<String, dynamic>>(
+                  displayStringForOption: (option) => '${option['matricule']} - ${option['fullName'] ?? 'Unknown'}',
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text.isEmpty) return const Iterable.empty();
+                    return _employees.where((employee) {
+                      final matricule = employee['matricule']?.toString().toLowerCase() ?? '';
+                      final name = (employee['fullName'] ?? '').toString().toLowerCase();
+                      final query = textEditingValue.text.toLowerCase();
+                      
+                      bool matchesSearch = matricule.contains(query) || name.contains(query);
+                      // If a group is selected, only show employees in that group
+                      if (_selectedGroup != null && _selectedGroup!.isNotEmpty) {
+                        final empGroup = employee['group']?.toString() ?? 'UNASSIGNED';
+                        matchesSearch = matchesSearch && empGroup == _selectedGroup;
+                      }
+                      
+                      return matchesSearch;
+                    });
+                  },
+                  onSelected: (Map<String, dynamic> selection) {
+                    setState(() => _selectedMatricule = selection['matricule'].toString());
+                    _onFilterChanged();
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                    return TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        labelText: 'Employee Matricule',
+                        hintText: 'Search...',
+                        prefixIcon: const Icon(Icons.person_search, size: 20),
+                        suffixIcon: _selectedMatricule != null
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 20),
+                                onPressed: () {
+                                  controller.clear();
+                                  setState(() => _selectedMatricule = null);
+                                  _onFilterChanged();
+                                },
+                              )
+                            : null,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    );
+                  },
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmployeeProfileBanner() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.primary.withOpacity(0.2),
+            child: const Icon(Icons.person, color: AppColors.primary),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _currentEmployeeInfo!['name'] ?? 'Unknown Employee',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                Text(
+                  'Matricule: ${_currentEmployeeInfo!['matricule']}',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.group_work, size: 16, color: Colors.blue),
+                const SizedBox(width: 8),
+                Text(
+                  'Group: ${_currentEmployeeInfo!['group'] ?? 'UNASSIGNED'}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+                ),
+              ],
+            ),
+          )
         ],
       ),
     );
@@ -276,7 +387,7 @@ class _HrKpiDashboardScreenState extends State<HrKpiDashboardScreen> {
   }
 
   Widget _buildChartSection() {
-    final List<dynamic> chartDataRaw = _dashboardData['chartData'] ?? [];
+    final List<dynamic> chartDataRaw = _dashboardData['chartData'] ?? _dashboardData['timeBasedData'] ?? [];
     if (chartDataRaw.isEmpty) {
       return const SizedBox(height: 200, child: Center(child: Text('No data to display')));
     }
