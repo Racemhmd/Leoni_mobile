@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../services/api_service.dart';
+import '../theme/design_system.dart';
+import '../widgets/reward_card.dart';
+import '../widgets/skeleton_loader.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/confirm_modal.dart';
 
 class XmallScreen extends StatefulWidget {
   const XmallScreen({super.key});
@@ -11,294 +16,368 @@ class XmallScreen extends StatefulWidget {
 }
 
 class _XmallScreenState extends State<XmallScreen> {
-  final _apiService = ApiService(); // Use singleton or provider
-  bool _isLoading = false;
-  int _balance = 0;
-  
-  // Rate: 10 Points = 1 TND
-  static const double _conversionRate = 0.1;
+  final _apiService = ApiService();
+  final _searchController = TextEditingController();
 
-  final List<Map<String, dynamic>> _rewards = [
-    {
-      'id': 1,
-      'name': 'Shopping Voucher 10 TND',
-      'price': 100, // Points
-      'image': 'assets/images/voucher10.png', // Placeholder
-      'description': 'Valid for all partners'
-    },
-    {
-      'id': 2,
-      'name': 'Shopping Voucher 20 TND',
-      'price': 200,
-      'image': 'assets/images/voucher20.png',
-      'description': 'Valid for all partners'
-    },
-     {
-      'id': 3,
-      'name': 'Shopping Voucher 50 TND',
-      'price': 500,
-      'image': 'assets/images/voucher50.png',
-      'description': 'Valid for all partners'
-    },
-    {
-      'id': 4,
-      'name': 'Cinema Ticket',
-      'price': 150,
-      'image': 'assets/images/cinema.png',
-      'description': 'Standard Entry'
-    },
-    {
-      'id': 5,
-      'name': 'Coffee Break Pack',
-      'price': 50,
-      'image': 'assets/images/coffee.png',
-      'description': 'Coffee + Pastry'
-    },
-     {
-      'id': 6,
-      'name': 'Wellness Day Pass',
-      'price': 800,
-      'image': 'assets/images/spa.png',
-      'description': 'Access to Spa/Gym'
-    },
-  ];
+  static const double _pointToDtRate = 10.0;
+
+  int _balance = 0;
+  List<Map<String, dynamic>>? _rewards;
+  bool _isLoadingBalance = false;
+  bool _isLoadingRewards = false;
+  bool _isRedeeming = false;
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _fetchBalance();
+    _fetchAll();
+    _searchController.addListener(
+        () => setState(() => _searchQuery = _searchController.text));
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchAll() async {
+    await Future.wait([_fetchBalance(), _fetchRewards()]);
   }
 
   Future<void> _fetchBalance() async {
-    setState(() => _isLoading = true);
+    setState(() => _isLoadingBalance = true);
     try {
       final res = await _apiService.get('/points/balance');
       if (mounted) {
+        setState(() => _balance = (res['points'] as num?)?.toInt() ?? 0);
+      }
+    } catch (e) {
+      debugPrint('Balance error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingBalance = false);
+    }
+  }
+
+  Future<void> _fetchRewards() async {
+    setState(() => _isLoadingRewards = true);
+    try {
+      final res = await _apiService.get('/points/rewards');
+      if (mounted && res is List) {
         setState(() {
-          _balance = res['points'] ?? 0;
+          _rewards =
+              res.map((e) => Map<String, dynamic>.from(e as Map)).toList();
         });
       }
     } catch (e) {
-      debugPrint('Error fetching balance: $e');
+      debugPrint('Rewards error: $e');
+      if (mounted) setState(() => _rewards = []);
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoadingRewards = false);
     }
   }
 
   Future<void> _redeem(Map<String, dynamic> item) async {
-    if (_balance < item['price']) {
-      _showSnack('Insufficient points!', isError: true);
+    final itemPoints = (item['points'] as num).toInt();
+    if (_balance < itemPoints) {
+      _showSnack('Solde insuffisant !', isError: true);
       return;
     }
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Confirm Redemption', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: Text('Purchase "${item['name']}" for ${item['price']} Points?\n\nThis will deduct from your balance.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF003366), foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(ctx, true), 
-            child: const Text('Confirm'),
-          ),
-        ],
+    final afterBalance = _balance - itemPoints;
+    final confirmed = await ConfirmModal.show(
+      context,
+      title: 'Confirmer l\'échange',
+      description: 'Vous êtes sur le point d\'échanger "${item['name']}".',
+      confirmLabel: 'Échanger',
+      extra: Container(
+        padding: const EdgeInsets.all(AppSpacing.m),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(AppRadius.m),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _BalanceLine(
+              label: 'Avant',
+              pts: _balance,
+              color: AppColors.textPrimary,
+            ),
+            const Icon(Icons.arrow_forward,
+                size: 16, color: AppColors.textSecondary),
+            _BalanceLine(
+              label: 'Après',
+              pts: afterBalance,
+              color:
+                  afterBalance < 0 ? AppColors.error : AppColors.textPrimary,
+            ),
+          ],
+        ),
       ),
     );
 
-    if (confirm != true) return;
+    if (confirmed != true) return;
 
-    setState(() => _isLoading = true);
+    setState(() => _isRedeeming = true);
+    HapticFeedback.mediumImpact();
     try {
       await _apiService.post('/points/xmall', {
-        'points': item['price'],
-        'description': 'Redeemed: ${item['name']}',
+        'points': itemPoints,
+        'description': 'Échange XMALL : ${item['name']}',
       });
-      _showSnack('Redemption successful! Enjoy your reward.');
-      _fetchBalance(); // Refresh balance
+      _showSnack('Échange réussi ! Profitez de votre récompense.');
+      _fetchBalance();
     } catch (e) {
-      _showSnack('Transaction failed: $e', isError: true);
+      _showSnack('Échec de la transaction', isError: true);
     } finally {
-       if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isRedeeming = false);
     }
   }
 
   void _showSnack(String msg, {bool isError = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg), 
-        backgroundColor: isError ? Colors.red : Colors.green,
+        content: Text(msg),
+        backgroundColor:
+            isError ? AppColors.error : AppColors.success,
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
+  List<Map<String, dynamic>> get _filteredRewards {
+    if (_rewards == null) return [];
+    if (_searchQuery.isEmpty) return _rewards!;
+    final q = _searchQuery.toLowerCase();
+    return _rewards!
+        .where((r) =>
+            (r['name'] as String? ?? '').toLowerCase().contains(q) ||
+            (r['description'] as String? ?? '').toLowerCase().contains(q))
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final filtered = _filteredRewards;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
-      appBar: AppBar(
-        title: Text('XMALL Rewards', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
-        backgroundColor: const Color(0xFF003366),
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: Column(
+      backgroundColor: AppColors.background,
+      body: Stack(
         children: [
-          _buildBalanceInfo(),
-          Expanded(
-            child: _isLoading && _balance == 0 
-              ? const Center(child: CircularProgressIndicator()) 
-              : _buildRewardsGrid(),
+          CustomScrollView(
+            slivers: [
+              // ── Header ───────────────────────────────────────────────────
+              SliverAppBar(
+                pinned: true,
+                floating: false,
+                expandedHeight: 150,
+                backgroundColor: AppColors.primaryDark,
+                elevation: 0,
+                surfaceTintColor: Colors.transparent,
+                automaticallyImplyLeading: false,
+                flexibleSpace: FlexibleSpaceBar(
+                  collapseMode: CollapseMode.pin,
+                  background: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF2563EB), Color(0xFF1E3A8A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.l,
+                      MediaQuery.of(context).padding.top + AppSpacing.m,
+                      AppSpacing.l,
+                      AppSpacing.m,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Récompenses',
+                            style: AppTypography.headerLarge
+                                .copyWith(color: Colors.white)),
+                        const SizedBox(height: AppSpacing.s),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.m, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.full),
+                                border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
+                                    width: 1),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.stars_rounded,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  _isLoadingBalance
+                                      ? const SizedBox(
+                                          width: 40,
+                                          height: 14,
+                                          child: LinearProgressIndicator(
+                                              color: Colors.white70),
+                                        )
+                                      : Text(
+                                          '$_balance pts',
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.s),
+                            Text(
+                              '= ${(_balance * _pointToDtRate).toStringAsFixed(0)} DT',
+                              style: AppTypography.bodySmall
+                                  .copyWith(color: Colors.white70),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(56),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.l, 0, AppSpacing.l, AppSpacing.m),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Rechercher une récompense…',
+                        prefixIcon:
+                            const Icon(Icons.search_rounded, size: 20),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                onPressed: () => _searchController.clear(),
+                              )
+                            : null,
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 0),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // ── Grid ─────────────────────────────────────────────────────
+              if (_isLoadingRewards)
+                SliverPadding(
+                  padding: const EdgeInsets.all(AppSpacing.l),
+                  sliver: SliverGrid(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.75,
+                      crossAxisSpacing: AppSpacing.m,
+                      mainAxisSpacing: AppSpacing.m,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (_, __) => const SkeletonGridCard(),
+                      childCount: 6,
+                    ),
+                  ),
+                )
+              else if (filtered.isEmpty)
+                SliverFillRemaining(
+                  child: EmptyState(
+                    icon: Icons.card_giftcard_outlined,
+                    title: _searchQuery.isNotEmpty
+                        ? 'Aucun résultat'
+                        : 'Aucune récompense',
+                    subtitle: _searchQuery.isNotEmpty
+                        ? 'Essayez un autre mot-clé.'
+                        : 'Le catalogue est vide pour l\'instant.',
+                    actionLabel:
+                        _searchQuery.isEmpty ? 'Réessayer' : null,
+                    onAction: _searchQuery.isEmpty ? _fetchRewards : null,
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.l, AppSpacing.m, AppSpacing.l, AppSpacing.xxl),
+                  sliver: SliverGrid(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.75,
+                      crossAxisSpacing: AppSpacing.m,
+                      mainAxisSpacing: AppSpacing.m,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (ctx, i) => RewardCard(
+                        reward: filtered[i],
+                        userBalance: _balance,
+                        index: i,
+                        onRedeem: () => _redeem(filtered[i]),
+                      ),
+                      childCount: filtered.length,
+                    ),
+                  ),
+                ),
+            ],
           ),
+
+          // ── Redeeming overlay ────────────────────────────────────────────
+          if (_isRedeeming)
+            const ColoredBox(
+              color: Colors.black26,
+              child: Center(child: CircularProgressIndicator()),
+            ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildBalanceInfo() {
-    final moneyValue = (_balance * _conversionRate).toStringAsFixed(1);
-    
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: Color(0xFF003366),
-        borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
-      ),
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
-      child: Column(
-        children: [
-          Text('Your Balance', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 14)),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('$_balance', style: GoogleFonts.outfit(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold)),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8, left: 4),
-                child: Text('pts', style: GoogleFonts.poppins(color: Colors.orangeAccent, fontSize: 20, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.wallet, color: Colors.greenAccent, size: 18),
-                const SizedBox(width: 8),
-                Text('Value: $moneyValue TND', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn().slideY(begin: -0.2, end: 0);
-  }
+// ── Balance line for confirm modal ────────────────────────────────────────────
 
-  Widget _buildRewardsGrid() {
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _rewards.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.75,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-      ),
-      itemBuilder: (context, index) {
-        final item = _rewards[index];
-        final canAfford = _balance >= item['price'];
-        
-        return Card(
-          elevation: 4,
-          shadowColor: Colors.black12,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                flex: 3,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                    image: const DecorationImage(
-                        // Uses placeholder icon if asset logic not fully setup, or assume assets exist
-                        image: AssetImage('assets/images/placeholder_reward.png'),
-                        fit: BoxFit.cover,
-                    ) 
-                  ),
-                  child: Center(child: Icon(Icons.card_giftcard, size: 40, color: Colors.grey.shade400)),
-                ),
-              ),
-              Expanded(
-                flex: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item['name'],
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13, height: 1.2),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            item['description'],
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                      
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '${item['price']} pts',
-                            style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF003366),
-                                fontSize: 13
-                            ),
-                          ),
-                          SizedBox(
-                            width: 32,
-                            height: 32,
-                            child: IconButton(
-                              padding: EdgeInsets.zero,
-                              style: IconButton.styleFrom(
-                                backgroundColor: canAfford ? Colors.orangeAccent : Colors.grey.shade300,
-                              ),
-                              icon: const Icon(Icons.arrow_forward, size: 16, color: Colors.white),
-                              onPressed: canAfford ? () => _redeem(item) : null,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+class _BalanceLine extends StatelessWidget {
+  final String label;
+  final int pts;
+  final Color color;
+
+  const _BalanceLine({
+    required this.label,
+    required this.pts,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(label, style: AppTypography.caption),
+        const SizedBox(height: 2),
+        Text(
+          '$pts pts',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color,
           ),
-        ).animate().fadeIn(delay: Duration(milliseconds: 100 * index)).slideY(begin: 0.1, end: 0);
-      },
+        ),
+      ],
     );
   }
 }

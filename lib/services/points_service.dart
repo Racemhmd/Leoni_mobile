@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../constants/storage_keys.dart';
 import '../utils/constants.dart';
 
 class PointsService {
@@ -8,7 +9,7 @@ class PointsService {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   Future<Map<String, dynamic>> getSummary() async {
-    final token = await _storage.read(key: 'auth_token');
+    final token = await _storage.read(key: StorageKeys.authToken);
     final response = await http.get(
       Uri.parse('$baseUrl/points/summary'),
       headers: {
@@ -25,7 +26,7 @@ class PointsService {
   }
 
   Future<List<dynamic>> getHistory(String filter) async {
-    final token = await _storage.read(key: 'auth_token');
+    final token = await _storage.read(key: StorageKeys.authToken);
     final response = await http.get(
       Uri.parse('$baseUrl/points/history?filter=$filter'),
       headers: {
@@ -42,7 +43,7 @@ class PointsService {
   }
 
   Future<void> redeemPoints(int points, String description) async {
-    final token = await _storage.read(key: 'auth_token');
+    final token = await _storage.read(key: StorageKeys.authToken);
     final response = await http.post(
       Uri.parse('$baseUrl/points/xmall'),
       headers: {

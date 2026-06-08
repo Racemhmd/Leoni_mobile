@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../constants/storage_keys.dart';
 import '../utils/constants.dart';
 
 class ApiService {
@@ -11,7 +12,7 @@ class ApiService {
   String get baseUrl => AppConstants.baseUrl;
 
   Future<Map<String, String>> getHeaders() async {
-    final token = await storage.read(key: 'token');
+    final token = await storage.read(key: StorageKeys.authToken);
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -77,8 +78,8 @@ class ApiService {
 
       final data = await _handleResponse(response);
       
-      await storage.write(key: 'token', value: data['access_token']);
-      await storage.write(key: 'user', value: jsonEncode(data['user']));
+      await storage.write(key: StorageKeys.authToken, value: data['access_token']);
+      await storage.write(key: StorageKeys.user, value: jsonEncode(data['user']));
       return data;
     } catch (e) {
       if (kDebugMode) {
@@ -165,17 +166,28 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  Future<dynamic> uploadFile(String endpoint, File file) async {
-    final headers = await getHeaders();
+  Future<dynamic> uploadFile(
+    String endpoint,
+    File file, {
+    String method = 'POST',
+    String fieldName = 'file',
+  }) async {
+    final token = await storage.read(key: StorageKeys.authToken);
     final url = Uri.parse('$baseUrl$endpoint');
-    
-    var request = http.MultipartRequest('POST', url);
-    request.headers.addAll(headers);
-    request.files.add(await http.MultipartFile.fromPath('file', file.path));
 
-    var streamedResponse = await request.send();
-    var response = await http.Response.fromStream(streamedResponse);
+    final request = http.MultipartRequest(method.toUpperCase(), url);
+    request.headers.addAll({
+      'Accept': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+      'User-Agent': 'LeoniMobileApp',
+      if (token != null) 'Authorization': 'Bearer $token',
+    });
+    request.files
+        .add(await http.MultipartFile.fromPath(fieldName, file.path));
 
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
     return _handleResponse(response);
   }
+
 }

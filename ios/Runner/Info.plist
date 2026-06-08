@@ -45,5 +45,21 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- image_picker — accès galerie photo -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>MotivUp a besoin d'accéder à votre galerie pour choisir une photo de profil.</string>
+
+	<!-- image_picker — accès caméra -->
+	<key>NSCameraUsageDescription</key>
+	<string>MotivUp a besoin d'accéder à votre caméra pour prendre une photo de profil.</string>
+
+	<!-- image_picker — sauvegarde dans la galerie -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>MotivUp peut enregistrer des photos dans votre galerie.</string>
+
+	<!-- local_auth — Face ID -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>MotivUp utilise Face ID pour vous authentifier rapidement.</string>
 </dict>
 </plist>
