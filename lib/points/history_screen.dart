@@ -86,11 +86,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           // ── Header ───────────────────────────────────────────────────────
           Container(
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF1A56DB), Color(0xFF1E3A8A)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              gradient: AppGradients.brand,
             ),
             child: SafeArea(
               bottom: false,

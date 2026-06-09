@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'design_system.dart';
@@ -6,12 +7,18 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
+      brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
         primary: AppColors.primary,
-        secondary: AppColors.secondary,
+        secondary: AppColors.gold,
         surface: AppColors.surface,
         error: AppColors.error,
+        brightness: Brightness.dark,
+        onPrimary: Colors.white,
+        onSecondary: Colors.black,
+        onSurface: AppColors.textPrimary,
+        onError: Colors.white,
       ),
       scaffoldBackgroundColor: AppColors.background,
       splashFactory: InkRipple.splashFactory,
@@ -41,7 +48,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
         centerTitle: false,
         titleTextStyle: AppTypography.headerMedium,
@@ -90,7 +97,7 @@ class AppTheme {
       // ── Inputs ───────────────────────────────────────────────────────────────
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: AppColors.surfaceElevated,
         labelStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
         hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary),
         border: OutlineInputBorder(
@@ -109,8 +116,10 @@ class AppTheme {
           borderRadius: BorderRadius.circular(AppRadius.m),
           borderSide: const BorderSide(color: AppColors.error),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: AppSpacing.m, vertical: AppSpacing.m),
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.m, vertical: AppSpacing.m),
+        prefixIconColor: AppColors.textSecondary,
+        suffixIconColor: AppColors.textSecondary,
       ),
 
       // ── Bottom navigation ────────────────────────────────────────────────────
@@ -130,7 +139,50 @@ class AppTheme {
         selectedColor: AppColors.primary,
         labelStyle: AppTypography.bodySmall,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.full)),
+      ),
+
+      // ── Dialogs (dark) ───────────────────────────────────────────────────────
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.surfaceElevated,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.xl)),
+        titleTextStyle: AppTypography.headerSmall,
+        contentTextStyle: AppTypography.bodyMedium,
+      ),
+
+      // ── Drawer ───────────────────────────────────────────────────────────────
+      drawerTheme: const DrawerThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+      ),
+
+      // ── Popup menu ───────────────────────────────────────────────────────────
+      popupMenuTheme: const PopupMenuThemeData(
+        color: AppColors.surfaceElevated,
+        surfaceTintColor: Colors.transparent,
+      ),
+
+      // ── Switches ─────────────────────────────────────────────────────────────
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return AppColors.primary;
+          return AppColors.textMuted;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColors.primary.withOpacity(0.35);
+          }
+          return AppColors.surfaceDark;
+        }),
+      ),
+
+      // ── Bottom sheet ─────────────────────────────────────────────────────────
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.surfaceElevated,
+        surfaceTintColor: Colors.transparent,
       ),
 
       iconTheme: const IconThemeData(color: AppColors.textSecondary, size: 22),
@@ -141,7 +193,7 @@ class AppTheme {
 
   static ThemeData get adminTheme => lightTheme.copyWith(
         colorScheme:
-            lightTheme.colorScheme.copyWith(primary: AppColors.adminPrimary),
+            lightTheme.colorScheme.copyWith(primary: AppColors.primary),
       );
 
   static ThemeData get employeeTheme => lightTheme;

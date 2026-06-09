@@ -77,9 +77,14 @@ class ApiService {
       );
 
       final data = await _handleResponse(response);
-      
-      await storage.write(key: StorageKeys.authToken, value: data['access_token']);
-      await storage.write(key: StorageKeys.user, value: jsonEncode(data['user']));
+
+      final token = data?['access_token'] as String?;
+      final user = data?['user'];
+      if (token == null || user == null) {
+        throw Exception('Invalid server response: missing access_token or user');
+      }
+      await storage.write(key: StorageKeys.authToken, value: token);
+      await storage.write(key: StorageKeys.user, value: jsonEncode(user));
       return data;
     } catch (e) {
       if (kDebugMode) {

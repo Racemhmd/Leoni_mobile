@@ -182,7 +182,7 @@ class _AdminScreenState extends State<AdminScreen> {
     if (confirm != true) return;
     try {
       await _apiService.delete('/users/$matricule');
-      _loadDashboardData();
+      await _loadAll();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Employé supprimé')));
@@ -193,6 +193,87 @@ class _AdminScreenState extends State<AdminScreen> {
             .showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     }
+  }
+
+  Future<void> _setRecoveryEmail(Map<String, dynamic> user) async {
+    final matricule = user['matricule'] as String? ?? '';
+    final currentEmail = user['personalEmail'] as String? ?? '';
+    final controller = TextEditingController(text: currentEmail);
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceElevated,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Email de récupération'),
+            Text(
+              matricule,
+              style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Cet email permet à l\'employé de recevoir un code de sécurité pour réinitialiser son mot de passe.',
+              style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email personnel',
+                hintText: 'prenom.nom@gmail.com',
+                prefixIcon: Icon(Icons.email_outlined),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.save_outlined, size: 16),
+            label: const Text('Enregistrer'),
+            onPressed: () async {
+              final email = controller.text.trim();
+              if (email.isEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('Email requis')));
+                return;
+              }
+              try {
+                await _apiService.patch(
+                    '/users/$matricule/recovery-email', {'email': email});
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Email de récupération mis à jour pour $matricule'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                  await _loadDashboardData();
+                }
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text('Erreur: $e')));
+                }
+              }
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _managePoints(Map<String, dynamic> user) async {
@@ -567,6 +648,257 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
+  // ── Reward management ────────────────────────────────────────────────────
+
+  Future<void> _manageRewards() async {
+    List<dynamic> rewards = [];
+    bool loadingRewards = true;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setS) {
+          if (loadingRewards) {
+            _apiService.get('/rewards?all=true').then((data) {
+              if (data is List) setS(() { rewards = data; loadingRewards = false; });
+            }).catchError((_) => setS(() => loadingRewards = false));
+          }
+
+          return DraggableScrollableSheet(
+            initialChildSize: 0.85,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
+            builder: (_, controller) => Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: AppRadius.bottomSheet,
+              ),
+              child: Column(
+                children: [
+                  // Handle
+                  Container(
+                    width: 36, height: 4,
+                    margin: const EdgeInsets.symmetric(vertical: AppSpacing.m),
+                    decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.l, 0, AppSpacing.m, AppSpacing.m),
+                    child: Row(
+                      children: [
+                        Text('Récompenses', style: AppTypography.headerMedium),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+                          onPressed: () async {
+                            final created = await _showRewardDialog(ctx2);
+                            if (created == true) {
+                              final data = await _apiService.get('/rewards?all=true').catchError((_) => <dynamic>[]);
+                              if (data is List) setS(() => rewards = data);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: loadingRewards
+                        ? const Center(child: CircularProgressIndicator())
+                        : rewards.isEmpty
+                            ? const Center(child: Text('Aucune récompense'))
+                            : ListView.separated(
+                                controller: controller,
+                                padding: const EdgeInsets.symmetric(vertical: AppSpacing.s),
+                                itemCount: rewards.length,
+                                separatorBuilder: (_, __) => const Divider(height: 1),
+                                itemBuilder: (_, i) {
+                                  final r = rewards[i] as Map<String, dynamic>;
+                                  final isActive = r['isActive'] as bool? ?? true;
+                                  return ListTile(
+                                    leading: Container(
+                                      width: 40, height: 40,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryLight,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: r['imageUrl'] != null && (r['imageUrl'] as String).isNotEmpty
+                                          ? ClipRRect(
+                                              borderRadius: BorderRadius.circular(8),
+                                              child: Image.network(
+                                                r['imageUrl'] as String,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) =>
+                                                    const Icon(Icons.card_giftcard, color: AppColors.primary, size: 20),
+                                              ),
+                                            )
+                                          : const Icon(Icons.card_giftcard, color: AppColors.primary, size: 20),
+                                    ),
+                                    title: Text(r['name'] ?? '', style: AppTypography.bodyMedium),
+                                    subtitle: Text(
+                                      '${r['pointsCost']} pts · ${(r['category'] as String? ?? '')}${isActive ? '' : ' · inactif'}',
+                                      style: AppTypography.caption,
+                                    ),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
+                                          onPressed: () async {
+                                            final updated = await _showRewardDialog(ctx2, reward: r);
+                                            if (updated == true) {
+                                              final data = await _apiService.get('/rewards?all=true').catchError((_) => <dynamic>[]);
+                                              if (data is List) setS(() => rewards = data);
+                                            }
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                                          onPressed: () async {
+                                            final ok = await showDialog<bool>(
+                                              context: ctx2,
+                                              builder: (d) => AlertDialog(
+                                                title: const Text('Supprimer la récompense'),
+                                                content: Text('Supprimer "${r['name']}" ?'),
+                                                actions: [
+                                                  TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Annuler')),
+                                                  TextButton(
+                                                    style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                                                    onPressed: () => Navigator.pop(d, true),
+                                                    child: const Text('Supprimer'),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                            if (ok == true) {
+                                              try {
+                                                await _apiService.delete('/rewards/${r['id']}');
+                                                final data = await _apiService.get('/rewards?all=true').catchError((_) => <dynamic>[]);
+                                                if (data is List) setS(() => rewards = data);
+                                              } catch (e) {
+                                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                                              }
+                                            }
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<bool?> _showRewardDialog(BuildContext ctx, {Map<String, dynamic>? reward}) async {
+    final nameC = TextEditingController(text: reward?['name'] as String? ?? '');
+    final descC = TextEditingController(text: reward?['description'] as String? ?? '');
+    final imageC = TextEditingController(text: reward?['imageUrl'] as String? ?? '');
+    final pointsC = TextEditingController(text: (reward?['pointsCost'] ?? '').toString());
+    final stockC = TextEditingController(text: (reward?['stock'] ?? '').toString());
+    String category = reward?['category'] as String? ?? 'autre';
+    bool isActive = reward?['isActive'] as bool? ?? true;
+    final isEdit = reward != null;
+
+    return showDialog<bool>(
+      context: ctx,
+      builder: (d) => StatefulBuilder(
+        builder: (d2, setD) => AlertDialog(
+          title: Text(isEdit ? 'Modifier la récompense' : 'Nouvelle récompense',
+              style: AppTypography.headerSmall),
+          scrollable: true,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameC,
+                  decoration: const InputDecoration(labelText: 'Nom *')),
+              const SizedBox(height: 10),
+              TextField(controller: descC,
+                  decoration: const InputDecoration(labelText: 'Description')),
+              const SizedBox(height: 10),
+              TextField(controller: imageC,
+                  keyboardType: TextInputType.url,
+                  decoration: const InputDecoration(
+                    labelText: 'URL de la photo',
+                    hintText: 'https://...',
+                    prefixIcon: Icon(Icons.image_outlined, size: 18),
+                  )),
+              const SizedBox(height: 10),
+              TextField(controller: pointsC,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Coût en points *')),
+              const SizedBox(height: 10),
+              TextField(controller: stockC,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                      labelText: 'Stock (vide = illimité)')),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                value: category,
+                decoration: const InputDecoration(labelText: 'Catégorie'),
+                items: const [
+                  DropdownMenuItem(value: 'voucher', child: Text('Bon d\'achat')),
+                  DropdownMenuItem(value: 'loisirs', child: Text('Loisirs')),
+                  DropdownMenuItem(value: 'restauration', child: Text('Restauration')),
+                  DropdownMenuItem(value: 'bien-etre', child: Text('Bien-être')),
+                  DropdownMenuItem(value: 'electronique', child: Text('Électronique')),
+                  DropdownMenuItem(value: 'autre', child: Text('Autre')),
+                ],
+                onChanged: (v) => setD(() => category = v ?? category),
+              ),
+              const SizedBox(height: 4),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Active', style: AppTypography.bodyMedium),
+                value: isActive,
+                activeColor: AppColors.primary,
+                onChanged: (v) => setD(() => isActive = v),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameC.text.trim().isEmpty || pointsC.text.trim().isEmpty) return;
+                final body = <String, dynamic>{
+                  'name': nameC.text.trim(),
+                  'description': descC.text.trim(),
+                  'imageUrl': imageC.text.trim().isEmpty ? null : imageC.text.trim(),
+                  'pointsCost': double.tryParse(pointsC.text.trim()) ?? 0,
+                  'category': category,
+                  'isActive': isActive,
+                  'stock': stockC.text.trim().isEmpty ? null : int.tryParse(stockC.text.trim()),
+                };
+                try {
+                  if (isEdit) {
+                    await _apiService.patch('/rewards/${reward!['id']}', body);
+                  } else {
+                    await _apiService.post('/rewards', body);
+                  }
+                  if (d.mounted) Navigator.pop(d, true);
+                } catch (e) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                }
+              },
+              child: Text(isEdit ? 'Modifier' : 'Créer'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _importCsv() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -636,11 +968,11 @@ class _AdminScreenState extends State<AdminScreen> {
                     'matricule': matriculeC.text.trim(),
                     'fullName': nameC.text.trim(),
                     'role': {'name': roleValue},
-                    'password': 'password123',
+                    'password': 'MotivUp@Change1',
                   });
                   if (mounted) {
                     Navigator.pop(ctx);
-                    _loadDashboardData();
+                    await _loadDashboardData();
                   }
                 } catch (e) {
                   ScaffoldMessenger.of(ctx2)
@@ -671,20 +1003,20 @@ class _AdminScreenState extends State<AdminScreen> {
                     expandedHeight: 130,
                     pinned: true,
                     backgroundColor: AppColors.adminPrimary,
+                    surfaceTintColor: Colors.transparent,
                     elevation: 0,
                     actions: [
                       IconButton(
-                          icon: const Icon(Icons.history, color: Colors.white),
+                          icon: const Icon(Icons.history, color: Colors.white70, size: 20),
                           onPressed: () => Navigator.push(
                               context,
                               MaterialPageRoute(
                                   builder: (_) => const AuditLogScreen()))),
                       IconButton(
-                          icon: const Icon(Icons.refresh, color: Colors.white),
+                          icon: const Icon(Icons.refresh, color: Colors.white70, size: 20),
                           onPressed: _loadAll),
                       IconButton(
-                          icon:
-                              const Icon(Icons.logout, color: Colors.white),
+                          icon: const Icon(Icons.logout, color: Colors.white70, size: 20),
                           onPressed: () async {
                             await _apiService.logout();
                             if (context.mounted) {
@@ -701,24 +1033,73 @@ class _AdminScreenState extends State<AdminScreen> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('LEONI · HR ADMIN',
-                              style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 10,
-                                  letterSpacing: 1.2)),
+                          // LEONI logo au-dessus du nom admin
+                          _LeoniAdminLogo(),
+                          const SizedBox(height: 5),
                           Text(
                             _adminName.isNotEmpty
                                 ? _adminName
                                 : 'HR Administration',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold),
+                            style: AppTypography.headerSmall.copyWith(
+                              color: Colors.white,
+                              fontSize: 15,
+                            ),
                           ),
                         ],
                       ),
-                      background:
-                          Container(color: AppColors.adminPrimary),
+                      background: Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Color(0xFF0A1628),
+                              Color(0xFF0D1D35),
+                              Color(0xFF0F1628),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Stack(
+                          children: [
+                            // Subtle cyan glow top-right
+                            Positioned(
+                              right: -20,
+                              top: -20,
+                              child: Container(
+                                width: 140,
+                                height: 140,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: RadialGradient(
+                                    colors: [
+                                      AppColors.primary.withOpacity(0.15),
+                                      Colors.transparent,
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // Bottom accent line
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                height: 1,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      AppColors.primary.withOpacity(0.5),
+                                      Colors.transparent,
+                                      AppColors.primary.withOpacity(0.2),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
 
@@ -757,6 +1138,15 @@ class _AdminScreenState extends State<AdminScreen> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: AppSpacing.s),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _manageRewards,
+                            icon: const Icon(Icons.card_giftcard_outlined, size: 18),
+                            label: const Text('Gérer les récompenses'),
+                          ),
+                        ),
                         const SizedBox(height: AppSpacing.m),
                       ]),
                     ),
@@ -767,71 +1157,127 @@ class _AdminScreenState extends State<AdminScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.m),
                     sliver: SliverToBoxAdapter(
-                      child: Card(
-                        elevation: 1,
-                        child: DataTable(
-                          headingRowColor: WidgetStateProperty.all(
-                              Colors.grey.shade100),
-                          columnSpacing: 20,
-                          horizontalMargin: 12,
-                          columns: const [
-                            DataColumn(label: Text('Matricule')),
-                            DataColumn(label: Text('Nom / Rôle')),
-                            DataColumn(label: Text('Pts')),
-                            DataColumn(label: Text('Actions')),
-                          ],
-                          rows: _users.map((user) {
-                            final role = _getRoleName(user);
-                            return DataRow(cells: [
-                              DataCell(Text(user['matricule'] ?? '',
-                                  style: AppTypography.bodyMedium)),
-                              DataCell(Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    user['fullName'] ?? '-',
-                                    style: AppTypography.bodyMedium.copyWith(
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                  Text(role, style: AppTypography.label),
-                                ],
-                              )),
-                              DataCell(
-                                (role == 'HR_ADMIN' ||
-                                        role == 'SUPERVISOR')
-                                    ? const Text('')
-                                    : Text(
-                                        (user['pointsBalance'] ?? 0)
-                                            .toString(),
-                                        style:
-                                            AppTypography.bodyMedium.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.primary,
-                                        )),
-                              ),
-                              DataCell(Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.stars,
-                                        size: 20,
-                                        color: AppColors.secondary),
-                                    onPressed: () => _managePoints(
-                                        Map<String, dynamic>.from(
-                                            user as Map)),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline,
-                                        size: 20, color: AppColors.error),
-                                    onPressed: () =>
-                                        _deleteUser(user['matricule']),
-                                  ),
-                                ],
-                              )),
-                            ]);
-                          }).toList(),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceElevated,
+                          borderRadius: BorderRadius.circular(AppRadius.l),
+                          border: Border.all(color: AppColors.divider, width: 1),
+                          boxShadow: AppShadows.darkCard,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(AppRadius.l),
+                          child: DataTable(
+                            headingRowColor: WidgetStateProperty.all(
+                                AppColors.surfaceDark),
+                            dataRowColor: WidgetStateProperty.resolveWith(
+                                (states) {
+                              if (states.contains(WidgetState.hovered)) {
+                                return AppColors.surfaceDarkCard;
+                              }
+                              return Colors.transparent;
+                            }),
+                            columnSpacing: 16,
+                            horizontalMargin: 12,
+                            headingTextStyle: AppTypography.label.copyWith(
+                              color: AppColors.textSecondary,
+                              fontSize: 10,
+                              letterSpacing: 0.8,
+                            ),
+                            columns: const [
+                              DataColumn(label: Text('MATRICULE')),
+                              DataColumn(label: Text('NOM / RÔLE')),
+                              DataColumn(label: Text('PTS')),
+                              DataColumn(label: Text('ACTIONS')),
+                            ],
+                            rows: _users.map((user) {
+                              final role = _getRoleName(user);
+                              return DataRow(cells: [
+                                DataCell(Text(user['matricule'] ?? '',
+                                    style: AppTypography.monoData.copyWith(
+                                        fontSize: 12))),
+                                DataCell(Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      user['fullName'] ?? '-',
+                                      style: AppTypography.bodyMedium
+                                          .copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 13),
+                                    ),
+                                    Text(role,
+                                        style: AppTypography.label.copyWith(
+                                            fontSize: 9)),
+                                  ],
+                                )),
+                                DataCell(
+                                  (role == 'HR_ADMIN' ||
+                                          role == 'SUPERVISOR')
+                                      ? const Text('')
+                                      : Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary
+                                                .withOpacity(0.12),
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                    AppRadius.full),
+                                          ),
+                                          child: Text(
+                                            (user['pointsBalance'] ?? 0)
+                                                .toString(),
+                                            style: AppTypography.monoData
+                                                .copyWith(
+                                              color: AppColors.primary,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                                DataCell(Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      tooltip: 'Gérer les points',
+                                      icon: const Icon(Icons.stars,
+                                          size: 18,
+                                          color: AppColors.gold),
+                                      onPressed: () => _managePoints(
+                                          Map<String, dynamic>.from(
+                                              user as Map)),
+                                    ),
+                                    IconButton(
+                                      tooltip: (user['personalEmail'] as String?)?.isNotEmpty == true
+                                          ? 'Email: ${user['personalEmail']}'
+                                          : 'Définir email de récupération',
+                                      icon: Icon(
+                                        Icons.email_outlined,
+                                        size: 18,
+                                        color: (user['personalEmail'] as String?)?.isNotEmpty == true
+                                            ? AppColors.success
+                                            : AppColors.textMuted,
+                                      ),
+                                      onPressed: () => _setRecoveryEmail(
+                                          Map<String, dynamic>.from(
+                                              user as Map)),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Supprimer',
+                                      icon: const Icon(Icons.delete_outline,
+                                          size: 18, color: AppColors.error),
+                                      onPressed: () =>
+                                          _deleteUser(user['matricule']),
+                                    ),
+                                  ],
+                                )),
+                              ]);
+                            }).toList(),
+                          ),
                         ),
                       ),
                     ),
@@ -895,33 +1341,34 @@ class _AdminScreenState extends State<AdminScreen> {
       height: 180,
       padding: const EdgeInsets.all(AppSpacing.m),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(AppRadius.l),
+        border: Border.all(color: AppColors.divider, width: 1),
+        boxShadow: AppShadows.darkCard,
       ),
       child: Row(
         children: [
           Expanded(
             child: PieChart(
               PieChartData(
-                sectionsSpace: 2,
-                centerSpaceRadius: 36,
+                sectionsSpace: 3,
+                centerSpaceRadius: 38,
                 sections: [
                   PieChartSectionData(
-                      color: AppColors.employeePrimary,
+                      color: AppColors.primary,
                       value: _employeeCount.toDouble(),
                       title: '',
-                      radius: 44),
+                      radius: 42),
                   PieChartSectionData(
-                      color: AppColors.adminPrimary,
+                      color: AppColors.gold,
                       value: _supervisorCount.toDouble(),
                       title: '',
-                      radius: 44),
+                      radius: 42),
                   PieChartSectionData(
-                      color: Colors.grey,
+                      color: AppColors.secondary,
                       value: _adminCount.toDouble(),
                       title: '',
-                      radius: 44),
+                      radius: 42),
                 ],
               ),
             ),
@@ -931,13 +1378,14 @@ class _AdminScreenState extends State<AdminScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _LegendItem(
-                  color: AppColors.employeePrimary,
+                  color: AppColors.primary,
                   text: 'Employés ($_employeeCount)'),
               _LegendItem(
-                  color: AppColors.adminPrimary,
+                  color: AppColors.gold,
                   text: 'Superviseurs ($_supervisorCount)'),
               _LegendItem(
-                  color: Colors.grey, text: 'HR Admin ($_adminCount)'),
+                  color: AppColors.secondary,
+                  text: 'HR Admin ($_adminCount)'),
             ],
           ),
         ],
@@ -966,9 +1414,23 @@ class _KpiCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.m),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.surfaceElevated,
         borderRadius: BorderRadius.circular(AppRadius.l),
-        boxShadow: AppShadows.soft,
+        border: Border(
+          left: BorderSide(color: color, width: 3),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.12),
+            blurRadius: 20,
+            offset: const Offset(-2, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -977,13 +1439,23 @@ class _KpiCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: color, size: 20),
               Container(
-                width: 8,
-                height: 8,
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.4),
+                  color: color.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 16),
+              ),
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.5),
                   shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(color: color.withOpacity(0.6), blurRadius: 6),
+                  ],
                 ),
               ),
             ],
@@ -993,7 +1465,8 @@ class _KpiCard extends StatelessWidget {
             children: [
               Text(value,
                   style: AppTypography.headerMedium
-                      .copyWith(color: color, fontSize: 22)),
+                      .copyWith(color: color, fontSize: 24, letterSpacing: -0.5)),
+              const SizedBox(height: 2),
               Text(label,
                   style: AppTypography.caption,
                   maxLines: 2,
@@ -1042,6 +1515,42 @@ class _TabButton extends StatelessWidget {
               fontWeight: FontWeight.w600,
               fontSize: 14,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── LEONI logo widget — image asset avec fallback branded ────────────────────
+
+class _LeoniAdminLogo extends StatelessWidget {
+  const _LeoniAdminLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/images/leoni_logo.png',
+      height: 22,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0A3875), Color(0xFF1565C0)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(3),
+        ),
+        child: const Text(
+          'LEONI',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 10,
+            letterSpacing: 1.8,
+            height: 1.0,
           ),
         ),
       ),

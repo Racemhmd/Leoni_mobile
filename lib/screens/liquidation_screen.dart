@@ -308,9 +308,9 @@ class _LiquidationScreenState extends State<LiquidationScreen> {
   Widget _buildNetSummary(double netPoints, double amountDT) {
     return Container(
       decoration: BoxDecoration(
-        color: netPoints > 0 ? AppColors.success.withOpacity(0.08) : Colors.grey.shade100,
+        color: netPoints > 0 ? AppColors.success.withOpacity(0.08) : AppColors.surfaceElevated,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: netPoints > 0 ? AppColors.success.withOpacity(0.3) : Colors.grey.shade300),
+        border: Border.all(color: netPoints > 0 ? AppColors.success.withOpacity(0.3) : AppColors.divider),
       ),
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -378,9 +378,9 @@ class _LiquidationScreenState extends State<LiquidationScreen> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfaceElevated,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Row(
         children: [
@@ -405,12 +405,12 @@ class _LiquidationScreenState extends State<LiquidationScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: AppColors.surfaceElevated,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Row(children: [
-        Icon(icon, color: Colors.grey.shade400, size: 20),
+        Icon(icon, color: AppColors.textMuted, size: 20),
         const SizedBox(width: 12),
         Text(msg, style: GoogleFonts.inter(color: AppColors.textLight, fontSize: 13)),
       ]),

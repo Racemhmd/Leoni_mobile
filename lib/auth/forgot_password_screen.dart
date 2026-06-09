@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../services/api_service.dart';
+import '../theme/design_system.dart';
 import 'reset_password_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -16,11 +17,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _apiService = ApiService();
   bool _isLoading = false;
 
+  @override
+  void dispose() {
+    _matriculeController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
   Future<void> _submitRequest() async {
     if (_matriculeController.text.isEmpty || _emailController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter matricule and email')),
-      );
+      _showSnack('Veuillez remplir tous les champs', isError: true);
       return;
     }
 
@@ -30,251 +36,260 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         _matriculeController.text.trim(),
         _emailController.text.trim(),
       );
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response['message'] ?? 'If the information is correct, a reset code has been sent.'),
-            backgroundColor: Colors.green.shade600,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => ResetPasswordScreen(matricule: _matriculeController.text.trim()),
-          ),
-        );
-      }
+
+      if (!mounted) return;
+      _showSnack(
+          response['message'] ?? 'Si les informations sont correctes, un code a été envoyé.');
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) =>
+              ResetPasswordScreen(matricule: _matriculeController.text.trim()),
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        // Log full response status and body in console
-        debugPrint('[Forgot Password API Error Details]: $e');
-
-        String errorMessage = e.toString().replaceAll('Exception: ', '');
-
-        // Show backend message if available. 
-        // Only override if it is a complete connection failure (network down).
-        if (errorMessage.contains('Connection refused') || 
-            errorMessage.contains('Failed host lookup') ||
-            errorMessage.contains('SocketException')) {
-           errorMessage = 'Unable to connect to the server. Please check your internet connection.';
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
+      if (!mounted) return;
+      _showSnack(e.toString().replaceAll('Exception: ', ''), isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  void _showSnack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: AppTypography.bodySmall.copyWith(color: Colors.white)),
+      backgroundColor: isError ? AppColors.error : AppColors.success,
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 4),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).primaryColor;
-    final leoniBlue = const Color(0xFF0033A0); // Enterprise LEONI Blue
-
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text(
-          'Account Recovery',
-          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 18),
-        ),
-        backgroundColor: leoniBlue,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
+      backgroundColor: AppColors.surfaceDark,
+      body: Stack(
+        children: [
+          // Background gradient
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(gradient: AppGradients.entry),
+            ),
+          ),
+          // Cyan radial glow
+          Positioned(
+            right: -50, top: 40,
+            child: Container(
+              width: 240, height: 240,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [
+                  AppColors.primary.withOpacity(0.15),
+                  Colors.transparent,
+                ]),
+              ),
+            ),
+          ),
+          Column(
             children: [
-              // Blue Header Background
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.only(top: 20, bottom: 60),
-                decoration: BoxDecoration(
-                  color: leoniBlue,
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(30),
-                    bottomRight: Radius.circular(30),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    const Icon(Icons.shield_outlined, size: 64, color: Colors.white),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Forgot Password?',
-                      style: GoogleFonts.inter(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+              // Dark hero panel
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.l, AppSpacing.m, AppSpacing.l, AppSpacing.xl),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Back button
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                            color: Colors.white, size: 18),
+                        style: IconButton.styleFrom(
+                          backgroundColor:
+                              Colors.white.withOpacity(0.08),
+                          padding: const EdgeInsets.all(10),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 40.0),
-                      child: Text(
-                        'Securely recover your enterprise account access.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14, color: Colors.white70),
+                      const SizedBox(height: AppSpacing.xl),
+                      Text(
+                        'LEONI GROUP',
+                        style: AppTypography.labelBright
+                            .copyWith(fontSize: 9, letterSpacing: 4.0),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: AppSpacing.sm),
+                      Text('Récupération\nde compte',
+                          style: AppTypography.displayHero
+                              .copyWith(fontSize: 38, height: 1.1)),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'Entrez votre matricule et email personnel.',
+                        style: AppTypography.bodySmall
+                            .copyWith(color: Colors.white.withOpacity(0.45)),
+                      ),
+                    ],
+                  ).animate().fadeIn(duration: 500.ms).slideY(
+                      begin: 0.05, end: 0, duration: 450.ms),
                 ),
               ),
 
-              // Form Card
-              Transform.translate(
-                offset: const Offset(0, -30),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: Container(
-                    padding: const EdgeInsets.all(24.0),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
+              // White form card
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(AppRadius.xxl),
+                      topRight: Radius.circular(AppRadius.xxl),
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.35),
+                        blurRadius: 40,
+                        offset: const Offset(0, -8),
+                      ),
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.l,
+                        AppSpacing.l, AppSpacing.l, AppSpacing.xxl),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
-                          'Identity Verification',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                        Center(
+                          child: Container(
+                            width: 36, height: 4,
+                            decoration: BoxDecoration(
+                              color: AppColors.divider,
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.full),
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Use the email registered in your profile. It can be Gmail, Yahoo, Outlook, or any personal email.',
-                          style: TextStyle(fontSize: 14, color: Colors.black54),
-                        ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: AppSpacing.l),
 
-                        // Matricule Input
+                        Row(
+                          children: [
+                            Container(
+                              width: 3, height: 20,
+                              decoration: BoxDecoration(
+                                gradient: AppGradients.brand,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Text('Vérification d\'identité',
+                                style: AppTypography.headerMedium),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Utilisez l\'email enregistré dans votre profil.',
+                          style: AppTypography.bodySmall,
+                        ),
+                        const SizedBox(height: AppSpacing.l),
+
+                        // Matricule
                         TextField(
                           controller: _matriculeController,
                           keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
+                          textInputAction: TextInputAction.next,
+                          style: AppTypography.monoData,
+                          decoration: const InputDecoration(
                             labelText: 'Matricule',
                             hintText: 'Ex: 10364838',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: leoniBlue, width: 2),
-                            ),
-                            filled: true,
-                            fillColor: Colors.grey.shade50,
-                            prefixIcon: Icon(Icons.badge_outlined, color: leoniBlue),
+                            prefixIcon:
+                                Icon(Icons.badge_outlined, size: 20),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppSpacing.m),
 
-                        // Email Input
+                        // Email
                         TextField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
-                          decoration: InputDecoration(
-                            labelText: 'Recovery Email',
-                            hintText: 'your.personal.email@gmail.com',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: leoniBlue, width: 2),
-                            ),
-                            filled: true,
-                            fillColor: Colors.grey.shade50,
-                            prefixIcon: Icon(Icons.email_outlined, color: leoniBlue),
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _submitRequest(),
+                          decoration: const InputDecoration(
+                            labelText: 'Email personnel',
+                            hintText: 'votre.email@gmail.com',
+                            prefixIcon:
+                                Icon(Icons.email_outlined, size: 20),
                           ),
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: AppSpacing.xl),
 
-                        // Submit Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _submitRequest,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: leoniBlue,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                        // Submit button
+                        _PlatformButton(
+                          onTap: _isLoading ? null : _submitRequest,
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 20, height: 20,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2.5))
+                              : Text('Envoyer le code',
+                                  style: AppTypography.button),
+                        ),
+
+                        const SizedBox(height: AppSpacing.l),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.info_outline,
+                                size: 14,
+                                color: AppColors.textSecondary
+                                    .withOpacity(0.5)),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Contactez l\'admin RH pour mettre à jour votre email.',
+                                style: AppTypography.caption
+                                    .copyWith(
+                                        color: AppColors.textSecondary
+                                            .withOpacity(0.55)),
                               ),
-                              elevation: 2,
                             ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: CircularProgressIndicator(
-                                        color: Colors.white, strokeWidth: 2))
-                                : const Text(
-                                    'Send Reset Code',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                          ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                ),
+                ).animate().slideY(
+                    begin: 0.12, end: 0,
+                    delay: 150.ms, duration: 450.ms,
+                    curve: Curves.easeOutCubic),
               ),
-
-              // Bottom Info
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.info_outline, size: 16, color: Colors.grey),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Please contact HR Admin to update your recovery email.',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlatformButton extends StatelessWidget {
+  final VoidCallback? onTap;
+  final Widget child;
+  const _PlatformButton({required this.onTap, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: onTap == null ? 0.5 : 1.0,
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          gradient: AppGradients.brand,
+          borderRadius: BorderRadius.circular(AppRadius.m),
+          boxShadow: onTap != null ? AppShadows.primaryGlow : null,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(AppRadius.m),
+            splashColor: Colors.white.withOpacity(0.15),
+            child: Center(child: child),
           ),
         ),
       ),

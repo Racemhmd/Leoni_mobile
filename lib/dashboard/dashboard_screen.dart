@@ -95,84 +95,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final greeting = _timeGreeting();
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: RefreshIndicator(
         onRefresh: _loadData,
         color: AppColors.primary,
+        backgroundColor: AppColors.surfaceElevated,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            // ── SliverAppBar ───────────────────────────────────────────────
-            SliverAppBar(
-              pinned: false,
-              floating: true,
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              automaticallyImplyLeading: false,
-              expandedHeight: 0,
-              titleSpacing: AppSpacing.l,
-              title: _isLoading
-                  ? null
-                  : Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF1A56DB), Color(0xFF1E3A8A)],
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              _firstName.isNotEmpty
-                                  ? _firstName[0].toUpperCase()
-                                  : 'E',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.m),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                greeting,
-                                style: AppTypography.caption,
-                              ),
-                              Text(
-                                _firstName,
-                                style: AppTypography.bodyMedium.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-              actions: [
-                const NotificationBell(),
-                IconButton(
-                  icon: const Icon(Icons.logout_outlined, size: 20),
-                  color: AppColors.textSecondary,
-                  tooltip: 'Déconnexion',
-                  onPressed: _logout,
-                ),
-                const SizedBox(width: AppSpacing.s),
-              ],
+            // ── Header ─────────────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: _buildHeader(),
             ),
 
             // ── Body ───────────────────────────────────────────────────────
@@ -189,40 +123,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           maxPoints: _earnedTotal > 0 ? _earnedTotal : 42,
                         ).animate().fadeIn(duration: 400.ms),
 
-                  const SizedBox(height: AppSpacing.l),
+                  const SizedBox(height: AppSpacing.m),
 
-                  // ── Quick actions ────────────────────────────────────────
+                  // ── Stats row ─────────────────────────────────────────
                   Row(
                     children: [
-                      _QuickAction(
+                      _StatTile(
                         label: 'Gagnés',
                         value: _isLoading ? '--' : '+$_earnedTotal',
                         icon: Icons.trending_up_rounded,
-                        bg: const Color(0xFFD1FAE5),
-                        fg: const Color(0xFF065F46),
+                        accentColor: AppColors.success,
                       ),
-                      const SizedBox(width: AppSpacing.m),
-                      _QuickAction(
+                      const SizedBox(width: AppSpacing.s),
+                      _StatTile(
                         label: 'Perdus',
                         value: _isLoading ? '--' : '-$_deductedTotal',
                         icon: Icons.trending_down_rounded,
-                        bg: const Color(0xFFFEE2E2),
-                        fg: const Color(0xFF991B1B),
+                        accentColor: AppColors.error,
                       ),
-                      const SizedBox(width: AppSpacing.m),
-                      _QuickAction(
-                        label: 'Solde DT',
-                        value: _isLoading ? '--' : '${_dtValue.toStringAsFixed(0)} DT',
+                      const SizedBox(width: AppSpacing.s),
+                      _StatTile(
+                        label: 'Valeur DT',
+                        value: _isLoading
+                            ? '--'
+                            : '${_dtValue.toStringAsFixed(0)} DT',
                         icon: Icons.account_balance_wallet_outlined,
-                        bg: const Color(0xFFEDE9FE),
-                        fg: const Color(0xFF5B21B6),
+                        accentColor: AppColors.gold,
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: AppSpacing.l),
+                  const SizedBox(height: AppSpacing.m),
 
-                  // ── Liquidation card ────────────────────────────────────
+                  // ── Liquidation card ──────────────────────────────────
                   if (!_isLoading && _liquidationDaysLeft != null)
                     _LiquidationCard(
                       name: _liquidationName,
@@ -232,22 +165,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         MaterialPageRoute(
                             builder: (_) => const LiquidationScreen()),
                       ),
-                    ).animate().fadeIn(delay: 200.ms),
+                    )
+                        .animate()
+                        .fadeIn(delay: 200.ms, duration: 350.ms)
+                        .slideY(
+                            begin: 0.08,
+                            end: 0,
+                            delay: 200.ms,
+                            duration: 350.ms),
 
                   if (!_isLoading && _liquidationDaysLeft != null)
-                    const SizedBox(height: AppSpacing.l),
+                    const SizedBox(height: AppSpacing.m),
 
-                  // ── Recent activity ─────────────────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Activité récente', style: AppTypography.headerSmall),
-                      if (!_isLoading)
-                        TextButton(
-                          onPressed: () {},
-                          child: const Text('Voir tout'),
-                        ),
-                    ],
+                  // ── Activity section header ────────────────────────────
+                  _SectionHeader(
+                    title: 'ACTIVITÉ RÉCENTE',
+                    onMore: !_isLoading ? () {} : null,
                   ),
                   const SizedBox(height: AppSpacing.s),
 
@@ -280,6 +213,91 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildHeader() {
+    final greeting = _timeGreeting();
+    final topPad = MediaQuery.of(context).padding.top;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+          AppSpacing.l, topPad + AppSpacing.s, AppSpacing.l, AppSpacing.m),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Top strip: LEONI logo + actions ──────────────────────────
+          Row(
+            children: [
+              // LEONI logo
+              _LeoniDashboardLogo(),
+              const Spacer(),
+              const NotificationBell(),
+              IconButton(
+                icon: const Icon(Icons.logout_outlined, size: 19),
+                color: AppColors.textSecondary,
+                tooltip: 'Déconnexion',
+                onPressed: _logout,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.m),
+
+          // ── Greeting row ────────────────────────────────────────────
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppGradients.brand,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    _firstName.isNotEmpty ? _firstName[0].toUpperCase() : 'E',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.m),
+              _isLoading
+                  ? const SizedBox(height: 40)
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          greeting,
+                          style: AppTypography.caption.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          _firstName,
+                          style: AppTypography.headerSmall.copyWith(
+                            color: AppColors.textPrimary,
+                            fontSize: 17,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   String _timeGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Bonjour,';
@@ -288,53 +306,111 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-// ── Quick Action tile ────────────────────────────────────────────────────────
+// ── LEONI logo — image asset avec fallback branded ───────────────────────────
 
-class _QuickAction extends StatelessWidget {
+class _LeoniDashboardLogo extends StatelessWidget {
+  const _LeoniDashboardLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/images/leoni_logo.png',
+      height: 24,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0A3875), Color(0xFF1565C0)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(3),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF1565C0).withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Text(
+          'LEONI',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w800,
+            fontSize: 10,
+            letterSpacing: 1.8,
+            height: 1.0,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Stat Tile — dark with colored accent ─────────────────────────────────────
+
+class _StatTile extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
-  final Color bg;
-  final Color fg;
+  final Color accentColor;
 
-  const _QuickAction({
+  const _StatTile({
     required this.label,
     required this.value,
     required this.icon,
-    required this.bg,
-    required this.fg,
+    required this.accentColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.m),
-          boxShadow: AppShadows.soft,
+          color: AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(AppRadius.l),
           border: Border(
-            top: BorderSide(color: fg.withOpacity(0.45), width: 3),
+            top: BorderSide(color: accentColor, width: 2.5),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: accentColor.withOpacity(0.1),
+              blurRadius: 16,
+              offset: const Offset(0, -2),
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
-                color: bg,
+                color: accentColor.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(7),
               ),
-              child: Icon(icon, color: fg, size: 16),
+              child: Icon(icon, color: accentColor, size: 14),
             ),
             const SizedBox(height: AppSpacing.s),
             Text(
               value,
-              style: AppTypography.headerSmall.copyWith(fontSize: 15),
+              style: AppTypography.headerSmall.copyWith(
+                fontSize: 13,
+                color: AppColors.textPrimary,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            Text(label, style: AppTypography.caption),
+            Text(label, style: AppTypography.caption.copyWith(fontSize: 10)),
           ],
         ),
       ),
@@ -359,8 +435,9 @@ class _LiquidationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isUrgent = daysLeft <= 7;
     final cardColors = isUrgent
-        ? [const Color(0xFFFF6B35), const Color(0xFFFF9A5C)]
-        : [const Color(0xFF1A56DB), const Color(0xFF1E3A8A)];
+        ? [AppColors.warning, const Color(0xFFE85D04)]
+        : [AppColors.primary, AppColors.primaryDark];
+    final glowColor = isUrgent ? AppColors.warning : AppColors.primary;
 
     return GestureDetector(
       onTap: () {
@@ -377,20 +454,45 @@ class _LiquidationCard extends StatelessWidget {
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(AppRadius.l),
-          boxShadow: AppShadows.card,
+          boxShadow: [
+            BoxShadow(
+              color: glowColor.withOpacity(0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Row(
           children: [
+            // Day counter badge
             Container(
-              padding: const EdgeInsets.all(10),
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                Icons.account_balance_wallet_outlined,
-                color: Colors.white,
-                size: 20,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '$daysLeft',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 22,
+                      height: 1.0,
+                    ),
+                  ),
+                  Text(
+                    'jours',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: AppSpacing.m),
@@ -402,17 +504,18 @@ class _LiquidationCard extends StatelessWidget {
                     'Liquidation $name',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       fontSize: 14,
                     ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     isUrgent
-                        ? 'Dans $daysLeft j. — Vérifiez votre solde !'
-                        : 'Dans $daysLeft jours',
+                        ? 'Urgent — Vérifiez votre solde !'
+                        : 'Conversion automatique de vos points',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.75),
+                      fontSize: 11.5,
                     ),
                   ),
                 ],
@@ -432,11 +535,11 @@ class _LiquidationCard extends StatelessWidget {
                     'Voir',
                     style: TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       fontSize: 12,
                     ),
                   ),
-                  SizedBox(width: 4),
+                  SizedBox(width: 3),
                   Icon(Icons.chevron_right, color: Colors.white, size: 16),
                 ],
               ),
@@ -444,6 +547,52 @@ class _LiquidationCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Section header with accent line ──────────────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final VoidCallback? onMore;
+
+  const _SectionHeader({required this.title, this.onMore});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 3,
+          height: 16,
+          decoration: BoxDecoration(
+            gradient: AppGradients.brand,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: AppTypography.label.copyWith(
+            color: AppColors.textPrimary,
+            fontSize: 11,
+            letterSpacing: 1.5,
+          ),
+        ),
+        const Spacer(),
+        if (onMore != null)
+          GestureDetector(
+            onTap: onMore,
+            child: Text(
+              'Voir tout',
+              style: AppTypography.caption.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

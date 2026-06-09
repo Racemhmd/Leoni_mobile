@@ -78,8 +78,14 @@ class _XmallScreenState extends State<XmallScreen> {
     }
   }
 
+  static int _parsePoints(dynamic raw) {
+    if (raw == null) return 0;
+    if (raw is num) return raw.toInt();
+    return double.tryParse(raw.toString())?.toInt() ?? 0;
+  }
+
   Future<void> _redeem(Map<String, dynamic> item) async {
-    final itemPoints = (item['points'] as num).toInt();
+    final itemPoints = _parsePoints(item['pointsCost']);
     if (_balance < itemPoints) {
       _showSnack('Solde insuffisant !', isError: true);
       return;
@@ -182,11 +188,7 @@ class _XmallScreenState extends State<XmallScreen> {
                   collapseMode: CollapseMode.pin,
                   background: Container(
                     decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF2563EB), Color(0xFF1E3A8A)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      gradient: AppGradients.brand,
                     ),
                     padding: EdgeInsets.fromLTRB(
                       AppSpacing.l,
@@ -260,18 +262,34 @@ class _XmallScreenState extends State<XmallScreen> {
                         AppSpacing.l, 0, AppSpacing.l, AppSpacing.m),
                     child: TextField(
                       controller: _searchController,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
                       decoration: InputDecoration(
                         hintText: 'Rechercher une récompense…',
-                        prefixIcon:
-                            const Icon(Icons.search_rounded, size: 20),
+                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 14),
+                        prefixIcon: Icon(Icons.search_rounded,
+                            size: 20, color: Colors.white.withOpacity(0.7)),
                         suffixIcon: _searchQuery.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(Icons.clear, size: 18),
+                                icon: Icon(Icons.clear,
+                                    size: 18,
+                                    color: Colors.white.withOpacity(0.7)),
                                 onPressed: () => _searchController.clear(),
                               )
                             : null,
+                        fillColor: Colors.white.withOpacity(0.14),
+                        filled: true,
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.m),
+                          borderSide: BorderSide(
+                              color: Colors.white.withOpacity(0.2), width: 1),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.m),
+                          borderSide: const BorderSide(
+                              color: Colors.white, width: 1.5),
+                        ),
                         contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 0),
+                            const EdgeInsets.symmetric(horizontal: 0, vertical: 10),
                         isDense: true,
                       ),
                     ),
