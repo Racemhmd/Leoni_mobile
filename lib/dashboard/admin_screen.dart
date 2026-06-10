@@ -10,6 +10,7 @@ import 'audit_log_screen.dart';
 import '../theme/design_system.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_drawer.dart';
+import '../leaves/leave_request_screen.dart';
 
 // ── Point categories mirroring backend PointReason enum ──────────────────────
 const _kEarningCategories = <String, int>{
@@ -42,6 +43,7 @@ class _AdminScreenState extends State<AdminScreen> {
   final _apiService = ApiService();
 
   List<dynamic> _users = [];
+  List<dynamic> _hrLeaveRequests = [];
   bool _isLoading = true;
   String _adminName = '';
 
@@ -97,12 +99,16 @@ class _AdminScreenState extends State<AdminScreen> {
         _apiService
             .get('/liquidation/next')
             .catchError((_) => <String, dynamic>{}),
+        _apiService
+            .get('/leaves/hr')
+            .catchError((_) => <dynamic>[]),
       ]);
 
-      final usersData = (results[0] is List) ? results[0] as List<dynamic> : <dynamic>[];
-      final stats = results[1] as Map<String, dynamic>;
-      final leaves = (results[2] is List) ? results[2] as List<dynamic> : <dynamic>[];
-      final liquidation = results[3] as Map<String, dynamic>;
+      final usersData    = (results[0] is List) ? results[0] as List<dynamic> : <dynamic>[];
+      final stats        = results[1] as Map<String, dynamic>;
+      final leaves       = (results[2] is List) ? results[2] as List<dynamic> : <dynamic>[];
+      final liquidation  = results[3] as Map<String, dynamic>;
+      final hrLeaves     = (results[4] is List) ? results[4] as List<dynamic> : <dynamic>[];
 
       usersData.sort((a, b) => _rolePriority(_getRoleName(a))
           .compareTo(_rolePriority(_getRoleName(b))));
@@ -110,6 +116,7 @@ class _AdminScreenState extends State<AdminScreen> {
       if (mounted) {
         setState(() {
           _users = usersData;
+          _hrLeaveRequests = hrLeaves;
           _pendingLeavesCount = leaves.length;
           _adminCount = usersData
               .where((u) => _getRoleName(u).toUpperCase() == 'HR_ADMIN')
@@ -987,6 +994,93 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
+  // ── HR leave approval helpers ─────────────────────────────────────────────
+
+  String _hrLeaveFullName(Map<String, dynamic> leave) {
+    final emp = leave['employee'] as Map<String, dynamic>?;
+    if (emp == null) return 'Employé #${leave['employeeId']}';
+    return emp['fullName'] ?? '${emp['firstName'] ?? ''} ${emp['lastName'] ?? ''}'.trim();
+  }
+
+  String _hrLeaveMatricule(Map<String, dynamic> leave) {
+    final emp = leave['employee'] as Map<String, dynamic>?;
+    return emp?['matricule'] ?? '';
+  }
+
+  String _hrLeaveSupervisorName(Map<String, dynamic> leave) {
+    final sup = leave['supervisor'] as Map<String, dynamic>?;
+    return sup?['fullName'] ?? '';
+  }
+
+  String _hrLeaveTypeLabel(String? type) {
+    switch (type) {
+      case 'ANNUAL_LEAVE':         return 'Congé Annuel';
+      case 'AUTHORIZED_ABSENCE':   return 'Absence Autorisée';
+      case 'INSUFFICIENT_BALANCE': return 'Solde Insuffisant';
+      default:                     return type ?? '-';
+    }
+  }
+
+  String _hrFormatDate(String? raw) {
+    if (raw == null) return '-';
+    try {
+      final d = DateTime.parse(raw);
+      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    } catch (_) {
+      return raw;
+    }
+  }
+
+  Future<void> _hrDecision(Map<String, dynamic> leave, bool approve) async {
+    String? comment;
+    if (!approve) {
+      final ctrl = TextEditingController();
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Motif du refus'),
+          content: TextField(
+            controller: ctrl,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Motif',
+              hintText: 'Veuillez indiquer la raison...',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Refuser'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      comment = ctrl.text.trim();
+    }
+
+    try {
+      await _apiService.patch(
+        '/leaves/${leave['id']}/hr-decision',
+        {'action': approve ? 'APPROVE' : 'REJECT', if (comment != null && comment.isNotEmpty) 'comment': comment},
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(approve ? 'Congé approuvé définitivement' : 'Congé refusé'),
+        backgroundColor: approve ? AppColors.success : AppColors.error,
+      ));
+      await _loadDashboardData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur : $e'), backgroundColor: AppColors.error),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Theme(
@@ -1147,8 +1241,87 @@ class _AdminScreenState extends State<AdminScreen> {
                             label: const Text('Gérer les récompenses'),
                           ),
                         ),
+                        const SizedBox(height: AppSpacing.s),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const LeaveRequestScreen()),
+                            ),
+                            icon: const Icon(Icons.beach_access_outlined, size: 18),
+                            label: const Text('Demander un congé'),
+                          ),
+                        ),
                         const SizedBox(height: AppSpacing.m),
                       ]),
+                    ),
+                  ),
+
+                  // ── HR leave approval section ─────────────────────────
+                  SliverPadding(
+                    padding: AppSpacing.pagePadding,
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.how_to_reg_outlined, size: 18, color: AppColors.warning),
+                              const SizedBox(width: 8),
+                              Text(
+                                'DEMANDES APPROUVÉES PAR SUPERVISEUR',
+                                style: AppTypography.label.copyWith(color: AppColors.warning),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.warning.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${_hrLeaveRequests.length}',
+                                  style: AppTypography.label.copyWith(color: AppColors.warning),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.m),
+                          if (_hrLeaveRequests.isEmpty)
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceElevated,
+                                borderRadius: BorderRadius.circular(AppRadius.l),
+                                border: Border.all(color: AppColors.divider),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'Aucune demande en attente de validation RH',
+                                  style: TextStyle(color: AppColors.textSecondary),
+                                ),
+                              ),
+                            )
+                          else
+                            ...(_hrLeaveRequests.map((leave) {
+                              final l = leave as Map<String, dynamic>;
+                              return _HrLeaveCard(
+                                employeeName:     _hrLeaveFullName(l),
+                                matricule:        _hrLeaveMatricule(l),
+                                leaveType:        _hrLeaveTypeLabel(l['leaveType'] as String?),
+                                startDate:        _hrFormatDate(l['startDate'] as String?),
+                                endDate:          _hrFormatDate(l['endDate'] as String?),
+                                supervisorName:   _hrLeaveSupervisorName(l),
+                                supervisorDecisionAt: _hrFormatDate(l['supervisorDecisionAt'] as String?),
+                                onApprove:        () => _hrDecision(l, true),
+                                onReject:         () => _hrDecision(l, false),
+                              );
+                            }).toList()),
+                          const SizedBox(height: AppSpacing.xl),
+                        ],
+                      ),
                     ),
                   ),
 
@@ -1577,6 +1750,151 @@ class _LegendItem extends StatelessWidget {
           const SizedBox(width: 6),
           Text(text, style: AppTypography.bodySmall),
         ],
+      ),
+    );
+  }
+}
+
+// ── HR leave approval card ────────────────────────────────────────────────────
+
+class _HrLeaveCard extends StatelessWidget {
+  const _HrLeaveCard({
+    required this.employeeName,
+    required this.matricule,
+    required this.leaveType,
+    required this.startDate,
+    required this.endDate,
+    required this.supervisorName,
+    required this.supervisorDecisionAt,
+    required this.onApprove,
+    required this.onReject,
+  });
+
+  final String       employeeName;
+  final String       matricule;
+  final String       leaveType;
+  final String       startDate;
+  final String       endDate;
+  final String       supervisorName;
+  final String       supervisorDecisionAt;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(AppRadius.l),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+        boxShadow: AppShadows.soft,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Employee row
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.warning.withValues(alpha: 0.12),
+                  child: Text(
+                    employeeName.isNotEmpty ? employeeName[0].toUpperCase() : '?',
+                    style: const TextStyle(color: AppColors.warning, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(employeeName,
+                          style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+                      if (matricule.isNotEmpty)
+                        Text('Mat. $matricule',
+                            style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    leaveType,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.warning,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+            // Dates
+            Row(
+              children: [
+                const Icon(Icons.calendar_today, size: 13, color: AppColors.textSecondary),
+                const SizedBox(width: 5),
+                Text('$startDate → $endDate', style: AppTypography.bodySmall),
+              ],
+            ),
+            const SizedBox(height: 6),
+            // Supervisor validation info
+            Row(
+              children: [
+                const Icon(Icons.verified_user_outlined, size: 13, color: AppColors.success),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    supervisorName.isNotEmpty
+                        ? 'Approuvé par $supervisorName le $supervisorDecisionAt'
+                        : 'Approuvé par le superviseur',
+                    style: AppTypography.bodySmall.copyWith(color: AppColors.success),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onReject,
+                    icon: const Icon(Icons.close, size: 15),
+                    label: const Text('Refuser'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: const BorderSide(color: AppColors.error),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: onApprove,
+                    icon: const Icon(Icons.check, size: 15),
+                    label: const Text('Valider'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

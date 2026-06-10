@@ -14,6 +14,7 @@ import '../widgets/skeleton_loader.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/notification_bell.dart';
 import '../screens/liquidation_screen.dart';
+import '../leaves/leave_request_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -37,6 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<dynamic> _recentActivity = [];
   int? _liquidationDaysLeft;
   String _liquidationName = '';
+  int _leaveBalance = 0;
   bool _isLoading = true;
 
   @override
@@ -75,6 +77,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _recentActivity = history.take(3).toList();
           _liquidationDaysLeft = (next['daysRemaining'] as num?)?.toInt();
           _liquidationName = next['shortName'] as String? ?? '';
+          _leaveBalance = (userData['leave_balance'] as num?)?.toInt() ?? 0;
         });
       }
     } catch (e) {
@@ -154,6 +157,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
 
                   const SizedBox(height: AppSpacing.m),
+
+                  // ── Leave card ────────────────────────────────────────
+                  if (!_isLoading)
+                    _LeaveCard(
+                      leaveBalance: _leaveBalance,
+                      onRequest: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const LeaveRequestScreen()),
+                        );
+                      },
+                    )
+                        .animate()
+                        .fadeIn(delay: 150.ms, duration: 350.ms)
+                        .slideY(
+                            begin: 0.06,
+                            end: 0,
+                            delay: 150.ms,
+                            duration: 350.ms),
+
+                  if (!_isLoading) const SizedBox(height: AppSpacing.m),
 
                   // ── Liquidation card ──────────────────────────────────
                   if (!_isLoading && _liquidationDaysLeft != null)
@@ -546,6 +571,113 @@ class _LiquidationCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Leave card ───────────────────────────────────────────────────────────────
+
+class _LeaveCard extends StatelessWidget {
+  final int leaveBalance;
+  final VoidCallback onRequest;
+
+  const _LeaveCard({required this.leaveBalance, required this.onRequest});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.m),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(AppRadius.l),
+        border: Border.all(
+          color: AppColors.primary.withOpacity(0.25),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Icone congés
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.beach_access_outlined,
+              color: AppColors.primary,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.m),
+          // Infos
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Congés disponibles',
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$leaveBalance jour${leaveBalance > 1 ? 's' : ''}',
+                  style: AppTypography.headerSmall.copyWith(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Bouton
+          GestureDetector(
+            onTap: onRequest,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: AppGradients.brand,
+                borderRadius: BorderRadius.circular(AppRadius.full),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add, color: Colors.white, size: 14),
+                  SizedBox(width: 4),
+                  Text(
+                    'Demander',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

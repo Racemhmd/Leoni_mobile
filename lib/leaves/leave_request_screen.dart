@@ -75,14 +75,12 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
 
 
   Future<void> _loadUserProfile() async {
-    // Ideally fetch from API /profile, but for now we might mock or use stored token info if available
-    // For this demo, let's fetch profile
     try {
-        final profile = await _apiService.get('/auth/profile');
+        final profile = await _apiService.get('/auth/me');
         setState(() {
             _matricule = profile['matricule'];
-            _fullName = profile['fullName'];
-            _leaveBalance = profile['leaveBalance'] ?? 20; // Mock balance if not set
+            _fullName = profile['fullName'] ?? profile['full_name'];
+            _leaveBalance = (profile['leave_balance'] as num?)?.toInt() ?? 20;
         });
     } catch (e) {
         debugPrint('Failed to load profile: $e');
